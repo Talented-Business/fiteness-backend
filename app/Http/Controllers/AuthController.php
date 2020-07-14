@@ -11,7 +11,6 @@ use App\User;
 use Mail;
 use App\Mail\VerifyMail;
 use App\Mail\PasswordMail;
-use App\Jobs\SendEmailToAdmin;
 use App\Session;
 
 class AuthController extends Controller
@@ -88,7 +87,7 @@ class AuthController extends Controller
         if ($user) {
             $user->update(['password' => Hash::make($password_code)]);
             $data = ['token' => $password_code,'name'=>$user->name];
-            SendEmailToAdmin::dispatch($email,new PasswordMail($data));
+            Mail::to($email)->send(new PasswordMail($data));
             return response()->json(true);
         } else {
             return response()->json(false,422);

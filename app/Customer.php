@@ -495,7 +495,7 @@ class Customer extends Model
     }
     public function getSendableWorkout($diff){
         $workout=null;
-        if($this->hasActiveSubscription()&&$this->notifiable=='1'){
+        if($this->hasActiveSubscription()){
             if($this->activeWorkoutSubscription==null){
                 $subscription = Subscription::whereCustomerId($this->id)->where(function($query){
                     $query->whereHas('plan', function($q){

@@ -5,9 +5,7 @@ namespace App;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use App\Mail\CartAbandonedNew;
-use App\Mail\CartAbandonedNewSecond;
 use App\Mail\CartAbandonedRenewal;
-use App\Jobs\NotifyNonSubscriber;
 use Mail;
 
 class Cart extends Model
@@ -92,9 +90,6 @@ class Cart extends Model
             if($coupon){
                 $url = env('APP_URL').'/#checkout?cart='.$this->id;
                 Mail::to($this->customer->email)->send(new CartAbandonedNew($this->customer->first_name,intval($coupon->discount).$coupon->form,$url,$coupon->code,$coupon->name));
-                $config = new Config;
-                $newSecondMailTime = $config->findByName(Setting::CART_NEW_CUSTOMER_SECOND_ABANDONED_TIME);
-                if($newSecondMailTime)NotifyNonSubscriber::dispatch($this->customer, new CartAbandonedNewSecond($this->customer->first_name,intval($coupon->discount).$coupon->form,$url,$coupon->code,$coupon->name))->delay(now()->addHours($newSecondMailTime));
             }else{
                 //print_r('emailNewSend');print_r($cartAbandonSetting['new_coupon_id']);//[new_coupon_id]
                 //print_r("\n");

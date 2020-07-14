@@ -14,23 +14,11 @@ class MauticClient
             'baseUrl' => env('MAUTIC_API_URL'),
             'userName' => env('MAUTIC_API_USERNAME'),
             'password' => env('MAUTIC_API_PASSWORD'),
-            //'version'      => 'OAuth2',
-            //'clientKey'=>'1_63mb6k6rkxcsk0w0oo44c884kc0840kcc04g8cw8wo8080w0g0',
-            //'clientSecret'=>'2ojzeb8hs0w0ssc00s8okw0sww08g8kkw0088c4kcokcwwgok0',
-            //'callback'=>'https://dev.fitemos.com/api/redirect'
         );
 
         // Initiate the auth object
         $initAuth = new ApiAuth();
         $this->auth = $initAuth->newAuth($settings, 'BasicAuth');
-        //$this->auth = $initAuth->newAuth($settings);
-        /*if ($this->auth->validateAccessToken()) {
-            if ($this->auth->accessTokenUpdated()) {
-                $accessTokenData = $this->auth->getAccessTokenData();
-        
-                //store access token data however you want
-            }
-        }*/
         $this->apiUrl = env('MAUTIC_API_URL') . '/api';
     }
     private function getFields()

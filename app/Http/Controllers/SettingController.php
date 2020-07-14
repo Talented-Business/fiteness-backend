@@ -22,8 +22,7 @@ class SettingController extends Controller
         $unit = $request->input('unit');
         $newCouponId = $request->input('new_coupon_id');
         $renewalCouponId = $request->input('renewal_coupon_id');
-        $newSecondMail = $request->input('new_second_mail');
-        Setting::saveCart($time,$unit,$newCouponId,$renewalCouponId,$newSecondMail);
+        Setting::saveCart($time,$unit,$newCouponId,$renewalCouponId);
         return response()->json(['status'=>'ok']);
     }
     public function permissions(){
