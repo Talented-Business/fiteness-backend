@@ -9,7 +9,8 @@ use App\Mail\SubscriptionCancel;
 use App\Mail\SubscriptionCancelAdmin;
 use Illuminate\Support\Facades\DB;
 use Mail;
-
+use App\Jobs\SendEmail;
+use App\Jobs\SendEmailToAdmin;
 class Subscription extends Model
 {
     private $pageSize;
@@ -502,7 +503,6 @@ class Subscription extends Model
                         break;    
                 }
                 print_r($endDate);
-                print_r("\n");
                 if ($changed) {
                     print_r('changed');
                     $this->save();
@@ -527,7 +527,7 @@ class Subscription extends Model
                 if ($lastTransaction) {
                     $this->transaction_id = $lastTransaction->id;
                     $customer = Customer::find($customerId);
-                    if ($customer->first_payment_date == null && $lastTransaction->total>0) {
+                    if ($customer->first_payment_date == null && $lastTransaction->id>0) {
                         $customer->first_payment_date = date('Y-m-d', strtotime($lastTransaction->done_date));
                         $customer->save();
                     }
@@ -604,7 +604,7 @@ class Subscription extends Model
             $query->whereHas('user', function ($q) {
                 $q->where('active', '=', 1);
             });
-        })->get();
+        })->whereId(3194)->get();
         $services = Service::all();
         foreach ($services as $service) {
             foreach ($customers as $customer) { //I didn't consider service_id
@@ -614,7 +614,9 @@ class Subscription extends Model
                     });
                 })->first();
                 if ($subscription) {
-                    $subscription->scraping();
+                    if($subscription->id == 427){
+                        $subscription->scraping();
+                    }
                 } else {
                     //new creation if payment subscription exist
                     $paymentSubscription = PaymentSubscription::whereCustomerId($customer->id)->first();
@@ -659,6 +661,7 @@ class Subscription extends Model
             $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
             if ($paymentSubscription) {
                 if ($paymentSubscription->cancelAction()){
+                    $paymentSubscription->cancelChangedPaymentSubscriptions();
                     if ($enableEnd === "yes") {
                         $this->cancelled_date = date('Y-m-d H:i:s');
                         $this->end_date = $paymentSubscription->getEndDate();
@@ -674,8 +677,8 @@ class Subscription extends Model
                     setlocale(LC_ALL, "es_ES", 'Spanish_Spain', 'Spanish');
                     $cancelDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->cancelled_date)));
                     $subscriptionEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->end_date)));
-                    Mail::to($this->customer->email)->send(new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));                    
-                    Mail::to(env("MAIL_FROM_ADDRESS"))->send(new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$reason,$enableEnd));
+                    SendEmail::dispatch($this->customer,new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));
+                    SendEmailToAdmin::dispatch(env("MAIL_FROM_ADDRESS"),new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$reason,$enableEnd));
                     return true;
                 }
             }

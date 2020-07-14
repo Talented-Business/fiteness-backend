@@ -172,20 +172,28 @@ class UserController extends Controller
         }
       
         list($srcWidth, $srcHeight) = getimagesize($sourcePath);
-      
+        $originalAspect = $srcWidth / $srcHeight;
+        $thumbAspect = $width / $height;      
         // calculating the part of the image to use for thumbnail
-        if ($srcWidth > $srcHeight) {
-          $y = 0;
-          $x = ($srcWidth - $srcHeight) / 2;
-          $smallestSide = $srcHeight;
-        } else {
-          $x = 0;
-          $y = ($srcHeight - $srcWidth) / 2;
-          $smallestSide = $srcWidth;
+        if ( $originalAspect >= $thumbAspect )
+        {
+           // If image is wider than thumbnail (in aspect ratio sense)
+           $newHeight = $height;
+           $newWidth = $srcWidth / ($srcHeight / $height);
         }
-      
+        else
+        {
+           // If the thumbnail is wider than the image
+           $newWidth = $width;
+           $newHeight = $srcHeight / ($srcWidth / $width);
+        }      
         $destinationImage = imagecreatetruecolor($width, $height);
-        imagecopyresampled($destinationImage, $sourceImage, 0, 0, $x, $y, $width, $height, $smallestSide, $smallestSide);
+        imagecopyresampled($destinationImage, $sourceImage, 
+            0 - ($newWidth - $width) / 2, // Center the image horizontally
+            0 - ($newHeight - $height) / 2, // Center the image vertically
+            0, 0,
+            $newWidth, $newHeight,
+            $srcWidth, $srcHeight);
       
         if ($destination == null) {
           header('Content-Type: image/jpeg');

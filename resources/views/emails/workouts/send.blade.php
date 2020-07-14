@@ -30,6 +30,7 @@
   -webkit-justify-content: center;
   text-decoration:none;
   " target="_blank">VER ENTRENAMIENTO</a>
+    <br />
   <small style="text-align: center;"><b>Nota:</b> Para ver las Notas y Completar el Workout debes realizarlo desde el perfil.</small>
   <br />
   <br />

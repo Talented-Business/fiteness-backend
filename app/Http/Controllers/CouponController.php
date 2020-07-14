@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Coupon;
+use App\User;
 use Illuminate\Support\Facades\Validator;
 
 class CouponController extends Controller
@@ -121,8 +122,12 @@ class CouponController extends Controller
         }
         if($coupon){
             $userId = $inputs['user_id'];
+            $user = User::find($userId);
             $coupon['token'] = $code;
             $coupon->renewal = (int)$coupon->renewal;
+            if($coupon->renewal === 0 && $user->customer->hasSubscription()){
+                return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);    
+            }
             return response()->json(['voucher'=>$coupon]);
         }else{
             return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);

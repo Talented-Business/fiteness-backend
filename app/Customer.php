@@ -296,6 +296,16 @@ class Customer extends Model
                     });
                 });
                 break;
+            case "Cancelled":
+                $where->where(function($query){
+                    $query->whereHas('user', function($q){
+                        $q->where('active','=','1');
+                    });
+                    $query->whereHas('subscriptions', function($q){
+                        $q->where('status','=',"Cancelled");
+                    });
+                });
+                break;
             case "Leaving":
                 $where->where(function($query){
                     $query->whereHas('user', function($q){
@@ -345,7 +355,7 @@ class Customer extends Model
                 $q->where('service_id','=','1');
             });
         })->first();
-        if($subscription && $subscription->payment_plan_id) return true;
+        if($subscription && ($subscription->payment_plan_id || $subscription->status == 'Cancelled')) return true;
         return false;
     }
     public function hasActiveSubscription(){
@@ -600,7 +610,7 @@ class Customer extends Model
         $record->save();
     }
     public function findMedal(){
-        $doneworkouts = $this->doneWorkouts();
+        $doneworkouts = $this->done();
         $workoutCount = $doneworkouts->count();
         $fromWorkout = 0;
         $fromWorkoutImage = null;

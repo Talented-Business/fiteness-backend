@@ -1,9 +1,4 @@
 <?php
-//if(env('APP_ENV')=="local" || env('APP_ENV')==null){
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: *');
-    header( 'Access-Control-Allow-Headers: Authorization, Content-Type' );    
-//}
 
 use Illuminate\Http\Request;
 

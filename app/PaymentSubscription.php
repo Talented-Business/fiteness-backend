@@ -244,7 +244,7 @@ class PaymentSubscription extends Model
             $type = 0;
         }
 
-        return Transaction::wherePaymentSubscriptionId($this->subscription_id)->whereType($type)->orderBy('done_date', 'DESC')->first();
+        return Transaction::whereCustomerId($this->customer_id)->whereType($type)->orderBy('done_date', 'DESC')->first();
     }
     public function findSubscriptions()
     {
@@ -377,6 +377,11 @@ class PaymentSubscription extends Model
                     $customer->coupon_id = $couponId;
                     $customer->save();
                 }
+            }else{
+                $subscription->cancelled_date = null;
+                $subscription->cancelled_reason = null;
+                $subscription->cancelled_now = null;
+                $subscription->end_date = null;
             }
             $subscription->payment_plan_id = $this->plan_id;
             $subscription->gateway = $provider;
@@ -393,7 +398,7 @@ class PaymentSubscription extends Model
             if ($transaction) {
                 $subscription->transaction_id = $transaction->id;
                 $customer = Customer::find($customerId);
-                if ($customer->first_payment_date == null && $transaction->status == 'Completed' && $transaction->total>0) {
+                if ($customer->first_payment_date == null && $transaction->status == 'Completed') {
                     $customer->first_payment_date = date('Y-m-d', strtotime($transaction->done_date));
                     $customer->save();
                 }
@@ -410,6 +415,15 @@ class PaymentSubscription extends Model
             return true;
         }
         return false; // just now?
+    }
+    public function cancelChangedPaymentSubscriptions(){
+        list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
+        $planId = $provider.'-'.$planId.'-'.$customerId;
+        $paymentSubscriptions = PaymentSubscription::where('plan_id','like',"%$planId%")->whereTransaction('Changed')->whereStatus('Approved')->get();
+        foreach($paymentSubscriptions as $paymentSubscription){
+            $paymentSubscription->status = 'Cancelled';
+            $paymentSubscription->save();
+        }
     }
     private function postAction($action, $reason)
     {

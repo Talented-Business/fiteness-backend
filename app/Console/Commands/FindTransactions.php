@@ -176,9 +176,59 @@ class FindTransactions extends Command
                 }
             }
         }
-        if(true){
+        if(false){
             $time = 1589413708;
             echo date("Y-m-d H:i:s",$time);
+        }
+        if(false){
+            $subscriptions = Subscription::whereStatus('Cancelled')->get();
+            foreach($subscriptions as $subscription){
+                $paymentSubscription = $subscription->getLastPaymentSubscription();
+                if($paymentSubscription->status != 'Cancelled'){
+                    print_r($subscription->customer_id);
+                    print_r($paymentSubscription->status);
+                    print_r("\n");
+                }
+            }
+        }
+        if(false){
+            $customer = Customer::whereEmail('test-wl8xnqz7y@srv1.mail-tester.com')->first();
+            if($customer){
+                $workout = $customer->getSendableWorkout(1);
+                if($workout){
+                    try{
+                        $customer->send($workout);
+                    }catch(\Exception $e){
+                        //print_r($e);
+                    }
+                }
+            }
+        }
+        if(false){
+            $subscription = Subscription::find(5);
+            $time = $subscription->nextPaymentTime();
+            print_r($time);
+        }
+        if(false){
+            $transaction = Transaction::find(468);
+            $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($transaction->done_date)) . " +1 month"));
+            print_r($nextdatetime);
+            print_r("\n");
+            print_r(date("Y-m-d H:i:s"));
+        }
+        if(false){
+            $ids = [3994,3995,3997];
+            foreach($ids as $id){
+                $transaction = Transaction::whereCustomerId($id)->first();
+                $paymentSubscription = PaymentSubscription::whereCustomerId($id)->first();
+                $now = $paymentSubscription->updateSubscription($transaction);
+                $paymentSubscription->firstSendMail($transaction);
+            }
+        }
+        if(true){
+            $paymentSubscription = PaymentSubscription::whereSubscriptionId("nmi-2-3194-1-6-1588793005")->first();
+            var_dump(method_exists($paymentSubscription,'cancelChangedPaymentSubscriptions'));
+            $paymentSubscription->cancelChangedPaymentSubscriptions();
         }
     }
     function checkdnsrr($hostName, $recType = '') 

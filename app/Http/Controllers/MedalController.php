@@ -39,7 +39,7 @@ class MedalController extends Controller
     {
         $validator = Validator::make($request->all(), Medal::validateRules($id));
         if ($validator->fails()) {
-            return response()->json(array('status'=>'failed','errors'=>$validator->errors()));
+            return response()->json(array('status'=>'failed','errors'=>$validator->errors()),403);
         }
         $medal = Medal::find($id);
         if($request->hasFile('image')&&$request->file('image')->isValid()){ 

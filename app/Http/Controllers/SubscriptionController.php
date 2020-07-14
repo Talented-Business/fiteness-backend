@@ -275,6 +275,7 @@ class SubscriptionController extends Controller
                 $subscription->cancelled_date = null;
                 $subscription->cancelled_reason = null;
                 $subscription->cancelled_now = null;
+                $subscription->end_date = null;
                 $subscription->save();
                 return response()->json(['success' => 'success']);
             }

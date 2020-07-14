@@ -6,7 +6,7 @@ use App\PayPalClient;
 use PayPalCheckoutSdk\Orders\OrdersGetRequest;
 use Sample\CaptureIntentExamples\CreateOrder;
 
-class GetOrder
+class PaypalGetOrder
 {
 
     /**
@@ -48,5 +48,5 @@ class GetOrder
 if (!count(debug_backtrace()))
 {
     $createdOrder = CreateOrder::createOrder()->result;
-    GetOrder::getOrder($createdOrder ->id);
+    PaypalGetOrder::getOrder($createdOrder ->id);
 }

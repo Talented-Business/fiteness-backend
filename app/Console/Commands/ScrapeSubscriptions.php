@@ -54,8 +54,8 @@ class ScrapeSubscriptions extends Command
                 print_r(date("Y-m-d H:i:s"));
                 print_r("\n");
                 //start;
-                //Subscription::scrape();
-                MauticClient::scrape();
+                Subscription::scrape();
+                //MauticClient::scrape();
             }
             catch(\Exception $e){
                 echo 'error';

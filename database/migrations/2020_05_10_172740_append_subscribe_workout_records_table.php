@@ -14,7 +14,7 @@ class AppendSubscribeWorkoutRecordsTable extends Migration
     public function up()
     {
         Schema::table('records', function (Blueprint $table) {
-            $table->boolean('subscribe')->defaut(true);
+            $table->boolean('subscribe')->defaut(1);
         });
     }
 

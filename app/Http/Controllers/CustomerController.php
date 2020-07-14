@@ -258,7 +258,7 @@ class CustomerController extends Controller
             'Código de entrada',
             'PLAN DE SUSCRIPCIÓN',//new subscription frequency
             'Cliente Pago',// new payment have?Si/No
-            'ACTIVO / INACTIVO',//new status
+            'estado',//new status
             'TARJETA PEGADA',//new payment card registered?Si/No
             'TIPO DE PAGO',//new payment card type
             'RECIBIENDO SERVICIO',//active subscription?Si/No
@@ -288,25 +288,28 @@ class CustomerController extends Controller
             foreach($customers as $index=>$customer){
                 $customer->extends();
                 $status = '';
-                $frequencyString = '';
+                $frequencyString = '-';
                 $cancellationDate = null;
                 $currentActiveSubscriptionProgress = '';
                 $renewalCount = 0;
                 $cancelledNow = 'no';
                 $cancellationReason = '';
                 if($customer->user->active == 0){
-                    $items[$index]['status'] = "Disabled";
+                    $status = "Disabled";
                 }else{
                     $status = "Inactive";
                     foreach($customer->subscriptions as $subscription){
+                        $frequencyString = $subscription->frequency;
                         if($subscription->status == "Active"){
                             $status = "Active";
                             if($subscription->end_date)$status = "Leaving";
-                            $frequencyString = $subscription->frequency;
                             $cancellationDate = $subscription->cancelled_date;
                             $paymentSubscription = PaymentSubscription::whereSubscriptionId($subscription->transaction->payment_subscription_id)->first();
                             if($paymentSubscription)$currentActiveSubscriptionProgress = $this->calculateMonthDiff($paymentSubscription->start_date,date('Y-m-d')).'m';
                             if($subscription->plan_id == 1) $items[$index]['trial'] = 1;
+                            if($subscription->status == "Cancelled"){
+                                $status = "Cancelled";
+                            }
                             $cancelledNow = $subscription->cancelled_now;
                             $cancellationReason = $subscription->cancelled_reason;
                         }
@@ -392,7 +395,7 @@ class CustomerController extends Controller
                     $customer->whatsapp_phone_number,
                     $customer->active_whatsapp?'Si':'No',
                     $customer->coupon&&$customer->hasSubscription()?$customer->coupon->code:'',
-                    $customer->hasActiveSubscription()?$frequencyString:'-',
+                    $frequencyString,
                     $pay?'Si':'No',//'Cliente Pago', //new payment have?Si/No
                     $status, //'ACTIVO / INACTIVO',//new status
                     $cardRegistered?'Si':'No',//'TARJETA PEGADA',//new payment card registered?Si/No
@@ -410,7 +413,7 @@ class CustomerController extends Controller
                     $nextPaymentMonths,//new remaining the count of months until next payment
                     $total,//new total money
                     $tenPercentcoupon?'Si':'No',//new 10% lifetime discount accept or no accept
-                    $customer->gender,
+                    $customer->gender=='Male'?'M':'S',
                     $customer->initial_condition,
                     $customer->current_condition,
                     $customer->current_condition - $customer->initial_condition,
