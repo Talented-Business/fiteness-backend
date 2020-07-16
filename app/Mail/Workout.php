@@ -34,7 +34,7 @@ class Workout extends Mailable
      */
     public function build()
     {
-        $subject = "Workout del ".$this->publishDate;
+        $subject = "Fitemos ".$this->publishDate;
         if($this->blog)$subject = "Contenido del ".$this->publishDate;
         $sentences = explode("\n",$this->content[0]);
         foreach($sentences as $index=>$sentence){

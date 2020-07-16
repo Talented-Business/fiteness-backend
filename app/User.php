@@ -13,7 +13,6 @@ use Carbon\Carbon;
 use App\Weight;
 use Mail;
 use App\Height;
-use App\Mail\NotifyNewCustomer;
 use App\Jobs\NotifyNonSubscriber;
 
 class User extends Authenticatable
@@ -148,7 +147,7 @@ class User extends Authenticatable
                 ($imc>=18.5 && $imc<25 && $record['goal']!="fit") || 
                 ($imc>=25 && $record['goal']!="cardio")) $customer->objective = $record['goal'];
             $customer->save();
-            NotifyNonSubscriber::dispatch($customer, new \App\Mail\NotifyNonSubscriber($customer))->delay(now()->addHours(24));
+            //NotifyNonSubscriber::dispatch($customer, new \App\Mail\NotifyNonSubscriber($customer))->delay(now()->addHours(24)); //from task 1
             $adminEmails = User::adminEmail();//multi
             if(!empty($adminEmails)){
                 foreach($adminEmails as $email){

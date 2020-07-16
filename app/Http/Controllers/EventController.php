@@ -77,7 +77,13 @@ class EventController extends Controller
         $event = Event::find($id);
         if($event->image)  $event->image = url('storage/'.$event->image);
         $event->category;
-        $event['created_date'] = date('M d, Y',strtotime($event->created_at));
+        $event['created_date'] = date('M d, Y',strtotime($event->post_date));
+        if($event->post_date){
+            $event['immediate'] = false;
+            $dates = explode(' ',$benchmark->post_date);
+            $event['date'] = $dates[0];
+            $event['datetime'] = substr($dates[1],0,5);
+        }
         return response()->json($event);
     }
     public function index(Request $request){
@@ -126,7 +132,7 @@ class EventController extends Controller
         }
     }
     public function recent(){
-        $items = Event::whereStatus('Publish')->take(3)->orderBy('created_at','desc')->get();
+        $items = Event::whereStatus('Publish')->where('post_date','<',date("Y-m-d H:i:s"))->take(3)->orderBy('created_at','desc')->get();
         foreach($items as $index=> $event){
             $items[$index]['created_date'] = date('M d, Y',strtotime($event->created_at));
             $event->category;

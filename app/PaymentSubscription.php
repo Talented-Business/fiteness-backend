@@ -9,6 +9,8 @@ use App\Mail\RenewalPaymentNotification;
 use App\Mail\VerifyMail;
 use App\Jobs\SendEmail;
 use App\Jobs\NotifySubscriber;
+use App\Mail\MailQueue;
+use App\Mail\NotifyNewCustomer;
 use Mail;
 
 class PaymentSubscription extends Model
@@ -532,6 +534,8 @@ class PaymentSubscription extends Model
         if($customer->user)SendEmail::dispatch($customer,new VerifyMail($customer->user));
         SendEmail::dispatch($customer,new FirstPaymentNotification($customer->first_name,$frequencyString,$frequency,$amount,$transaction->total,$coupon,date('d/m/Y',strtotime($transaction->done_date)),$nextPaymentDate,$nextPaymentTotal));
         NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
+        $data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer'];
+        Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
         $customer->sendFirstWorkout();
     }
 }

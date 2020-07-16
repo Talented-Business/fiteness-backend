@@ -37,6 +37,6 @@ class CartAbandonedNew extends Mailable
     public function build()
     {
         $subject = $this->firstName.", ¡Cambia tu vida para siempre! Con esta oferta única";
-        return $this->subject($subject)->from($address = 'hola@fitemos.com', $name = 'Marifer de Fitemos')->view('emails.cart.new');
+        return $this->subject($subject)->from($address = 'hola@fitemos.com', $name = 'Team Fitemos')->view('emails.cart.new');
     }
 }

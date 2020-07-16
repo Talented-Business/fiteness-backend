@@ -149,7 +149,7 @@ trait WorkoutTrait
                 $blog = true;
             }
 
-            $spanishDate = ucfirst(iconv('ISO-8859-2', 'UTF-8', strftime("%A %d de %B", strtotime($publishDate))));
+            $spanishDate = ucfirst(iconv('ISO-8859-2', 'UTF-8', strftime("%A %d de %B del %Y", strtotime($publishDate))));
             if($customerId){
                 $customer = Customer::find($customerId);
                 if($customer){

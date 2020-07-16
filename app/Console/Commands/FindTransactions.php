@@ -67,8 +67,8 @@ class FindTransactions extends Command
             $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
             if($paymentSubscription)$paymentSubscription->renewalSendMail($transaction);
         }
-        if(false){
-            $transaction = Transaction::find(87);
+        if(true){
+            $transaction = Transaction::find(1452);
             $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
             if($paymentSubscription)$paymentSubscription->firstSendMail($transaction);
         }
@@ -225,7 +225,7 @@ class FindTransactions extends Command
                 $paymentSubscription->firstSendMail($transaction);
             }
         }
-        if(true){
+        if(false){
             $paymentSubscription = PaymentSubscription::whereSubscriptionId("nmi-2-3194-1-6-1588793005")->first();
             var_dump(method_exists($paymentSubscription,'cancelChangedPaymentSubscriptions'));
             $paymentSubscription->cancelChangedPaymentSubscriptions();
