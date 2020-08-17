@@ -159,7 +159,7 @@ class NmiClient
             } else {
                 if($transaction->coupon_id!=null){
                     $coupon = Coupon::find($transaction->coupon_id);
-                    if($coupon->discount == 100 && $coupon->form == '%' || $transaction->total == 0){
+                    if(($coupon->discount == 100 && $coupon->form == '%' || $transaction->total == 0) && $coupon->status == 'Active'){
                         $transaction->status = 'Completed';
                         $transaction->save();        
                     }

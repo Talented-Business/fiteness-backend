@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Validator;
 
 class BenchmarkController extends Controller
 {
+    public function __construct(){
+        $this->middleware('BenchmarkChangeData');
+    }
     public function store(Request $request)
     {
         $user = $request->user('api');
@@ -110,24 +113,32 @@ class BenchmarkController extends Controller
         }
         return response()->json(['published'=>$result]);
     }
-    public function disable($id){
+    public function disable($id,Request $request)
+    {
         $user = $request->user('api');
         if($user->can('benchmarks')){
             $benchmark = Benchmark::find($id);
-            $benchmark->status = "Draft";
-            $benchmark->save();
-            return response()->json($benchmark);
+            if ($benchmark) {
+                $benchmark->status = 'Draft';
+                $benchmark->save();
+                return response()->json(['success' => 'success']);
+            }
+            return response()->json(['error' => 'error'], 422);
         }else{
             return response()->json(['status'=>'failed'],403);
         }
     }
-    public function active($id){
+    public function active($id,Request $request)
+    {
         $user = $request->user('api');
         if($user->can('benchmarks')){
             $benchmark = Benchmark::find($id);
-            $benchmark->status = "Publish";
-            $benchmark->save();
-            return response()->json($benchmark);
+            if ($benchmark) {
+                $benchmark->status = 'Publish';
+                $benchmark->save();
+                return response()->json(['success' => 'success']);
+            }
+            return response()->json(['error' => 'error'], 422);
         }else{
             return response()->json(['status'=>'failed'],403);
         }

@@ -18,6 +18,7 @@ use App\Shortcode;
 use App\PaymentTocken;
 use App\PaymentSubscription;
 use App\Transaction;
+use App\Setting;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerController extends Controller
@@ -265,6 +266,14 @@ class CustomerController extends Controller
         }
         return Redirect::away($redirectLink);
     }
+    public function triggerWorkout(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            $user->customer->active_email=!$user->customer->active_email;
+            $user->customer->save();
+            return response()->json(['status'=>$user->customer->active_email]);
+        }
+    }
     public function triggerNotifiable(Request $request){
         $user = $request->user('api');
         if($user->customer){
@@ -273,5 +282,48 @@ class CustomerController extends Controller
             return response()->json(['status'=>$user->customer->notifiable]);
         }
         return response()->json(['status'=>'failed'],403);
+    }
+    public function showReferralCoupon(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            $referralCoupon = $user->customer->findReferralCoupon();
+            if($referralCoupon == null){
+                $referralCoupon = new Coupon;
+                $referralCoupon->type = "Referral";
+                $referralCoupon->customer_id = $user->customer->id;
+                $referralCoupon->name = "Referral";
+                $referralCoupon->code = "r".$user->customer->id;
+                $referralCoupon->discount = Setting::getReferralDiscount();
+                $referralCoupon->renewal = 1;
+                $referralCoupon->save();
+            }
+            return response()->json(['referralCoupon'=>$referralCoupon]);
+        }
+        return response()->json(['status'=>'failed'],403);
+    }
+    public function referral(Request $request){
+        $user = $request->user('api');
+        if($user->customer && $user->customer->hasActiveSubscription()){
+            $referralUrl = $user->customer->findReferralUrl();
+            $discount = Setting::getReferralDiscount();
+            return response()->json(['referralUrl'=>$referralUrl,'discount'=>$discount]);
+        }
+        return response()->json(['status'=>'failed']);
+    }
+    public function partners(Request $request){
+        $user = $request->user('api');
+        if($user->customer && $user->customer->hasActiveSubscription()){
+            $partners = $user->customer->findPartners();
+            return response()->json(['partners'=>$partners]);
+        }
+        return response()->json(['status'=>'failed']);
+    }
+    public function ccard(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            $paymentToken = PaymentTocken::whereCustomerId($user->customer->id)->first();
+            if($paymentToken)return response()->json(['number'=>$paymentToken->last4]);
+        }
+        return response()->json(['number'=>false]);
     }
 }

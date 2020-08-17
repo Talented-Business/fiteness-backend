@@ -10,6 +10,9 @@ use Vinkla\Facebook\Facades\Facebook;
 
 class EventController extends Controller
 {
+    public function __construct(){
+        $this->middleware('EventChangeData');
+    }
     public function store(Request $request)
     {
         $user = $request->user('api');
@@ -80,7 +83,7 @@ class EventController extends Controller
         $event['created_date'] = date('M d, Y',strtotime($event->post_date));
         if($event->post_date){
             $event['immediate'] = false;
-            $dates = explode(' ',$benchmark->post_date);
+            $dates = explode(' ',$event->post_date);
             $event['date'] = $dates[0];
             $event['datetime'] = substr($dates[1],0,5);
         }

@@ -30,6 +30,10 @@ class PaymentSubscription extends Model
             'start_time' => 'required',
         );
     }
+    public function customer()
+    {
+        return $this->belongsTo('App\Customer', 'customer_id');
+    }
     public function assign($request)
     {
         $data = $request->input('data');
@@ -69,7 +73,7 @@ class PaymentSubscription extends Model
             die;
         }
     }
-    public function createFromPlan($subscription, $paymentPlan, $debug = false)
+    public function createFromPlan($subscription, $paymentPlan)
     {
         $now = false;
         list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentPlan->analyzeSlug();
@@ -183,6 +187,74 @@ class PaymentSubscription extends Model
         }
         return $cyles;
     }
+    public function firstProcessingWithCustomerVault($subscription){
+        $paymentProviders = ['nmi'];
+        if (in_array($this->provider, $paymentProviders)) {
+            //last paymentSubscription;
+            list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
+            if (in_array($provider, $paymentProviders) && ($this->status == 'Active' || $this->status == 'Approved')) {
+                if ($provider == 'nmi') {
+                    $nextPaymentTime = date('Y-m-d H:i:s',strtotime($subscription->start_date) + $subscription->plan->free_duration*3600*24);
+                    if($nextPaymentTime && date('Y-m-d H:i:s')>$nextPaymentTime ){
+                        $result = $this->firstPayNmi($subscription);
+                        if(isset($result['transaction'])){
+                            $subscription->plan_id = $planId;
+                            $subscription->meta = $slug;
+                            $subscription->transaction_id = $result['transaction']->id;
+                            $subscription->save();
+                        }
+                        print_r('Nmi first request');
+                    }else{
+                        print_r('None Nmi first request');
+                    }
+                    print_r("\n");
+                } else {
+
+                }
+            }
+        }
+    }
+    private function firstPayNmi(){
+        $transaction = Transaction::renewalGenerate($this);
+        if ($transaction->total > 0 ) {
+            try {
+
+                $nmiClient = new NmiClient;
+                $response = $nmiClient->scheduledSubscriptionPayment($transaction);
+                if($this->status == 'Approved'){
+                    $this->status = 'Active';
+                    $this->transaction = 'Done';
+                    $this->save();
+                }
+                $this->sendFirstMail($transaction,false);
+                    // Return thank you page redirect
+                return array(
+                    'result' => 'success',
+                    'transaction'=>$transaction
+                );
+
+            } catch (\Exception $e) {
+                //wc_add_notice( sprintf( __( 'Gateway Error: %s', 'wc-nmi' ), $e->getMessage() ), 'error' );
+                Log::channel('nmiPayments')->error(sprintf('Gateway Error: %s', $e->getMessage()));
+                return [
+                    'result' => 'failed',
+                    'error_message' => $e->getMessage(),
+                ];
+            }
+        }else{
+            if($transaction->coupon_id!=null){
+                $coupon = Coupon::find($transaction->coupon_id);
+                if(($coupon->discount == 100 && $coupon->form == '%' || $transaction->total == 0) && $coupon->status == 'Active' && $coupon->renewal == 1){
+                    $transaction->status = 'Completed';
+                    $transaction->save();
+                }
+            }
+        }
+        return array(
+            'result' => 'success',
+            'transaction'=>$transaction
+        );
+    }
     public function recurringProcessingWithCustomerVault($subscription)
     {
         $paymentProviders = ['nmi'];
@@ -208,28 +280,38 @@ class PaymentSubscription extends Model
     }
     private function recurringNmi(){
         $transaction = Transaction::renewalGenerate($this);
-        try {
+        if ($transaction->total > 0 ) {
+            try {
 
-            $nmiClient = new NmiClient;
-            $response = $nmiClient->scheduledSubscriptionPayment($transaction);
-            if($this->status == 'Approved'){
-                $this->status = 'Active';
-                $this->transaction = 'Done';
-                $this->save();
+                $nmiClient = new NmiClient;
+                $response = $nmiClient->scheduledSubscriptionPayment($transaction);
+                if($this->status == 'Approved'){
+                    $this->status = 'Active';
+                    $this->transaction = 'Done';
+                    $this->save();
+                }
+                $this->renewalSendMail($transaction);
+                    // Return thank you page redirect
+                return array(
+                    'result' => 'success',
+                );
+
+            } catch (\Exception $e) {
+                //wc_add_notice( sprintf( __( 'Gateway Error: %s', 'wc-nmi' ), $e->getMessage() ), 'error' );
+                Log::channel('nmiPayments')->error(sprintf('Gateway Error: %s', $e->getMessage()));
+                return [
+                    'result' => 'failed',
+                    'error_message' => $e->getMessage(),
+                ];
             }
-            $this->renewalSendMail($transaction);
-                // Return thank you page redirect
-            return array(
-                'result' => 'success',
-            );
-
-        } catch (\Exception $e) {
-            //wc_add_notice( sprintf( __( 'Gateway Error: %s', 'wc-nmi' ), $e->getMessage() ), 'error' );
-            Log::channel('nmiPayments')->error(sprintf('Gateway Error: %s', $e->getMessage()));
-            return [
-                'result' => 'failed',
-                'error_message' => $e->getMessage(),
-            ];
+        }else{
+            if($transaction->coupon_id!=null){
+                $coupon = Coupon::find($transaction->coupon_id);
+                if(($coupon->discount == 100 && $coupon->form == '%' || $transaction->total == 0) && $coupon->status == 'Active' && $coupon->renewal == 1){
+                    $transaction->status = 'Completed';
+                    $transaction->save();
+                }
+            }
         }
     }
     public function forceRenewalNmi(){
@@ -312,7 +394,7 @@ class PaymentSubscription extends Model
         }
         return $nextdatetime;
     }
-    public function nextPaymentAmount()
+    public function nextPaymentAmount($coupon)
     {
         //service_id, frequency, coupon_id, is it first payment on the payment subscription?
         $paymentPlan = PaymentPlan::wherePlanId($this->plan_id)->first();
@@ -320,28 +402,39 @@ class PaymentSubscription extends Model
             list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentPlan->analyzeSlug();
             $subscriptionPlan = SubscriptionPlan::find($planId);
             $amount = $subscriptionPlan->{'month_' . $frequency};
-            if ($couponId) {
-                $coupon = Coupon::find($couponId);
+            $customer = Customer::find($customerId);
+            $partnerDiscount = $customer->findPartnerDiscount();
+            if ($coupon) {
                 if ($coupon->renewal == 1) {
                     if($coupon->form=='%'){
-                        $amount = round($amount * (100 - $coupon->discount)/100,2);
+                        if( $partnerDiscount && $coupon->discount < $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                        else $amount = round($amount * (100 - $coupon->discount)/100,2); 
                     }
                     else {
-                        $amount = round($amount - $coupon->discount,2);
+                        if( $partnerDiscount && $coupon->discount < $partnerDiscount * $amount / 100 ){
+                            $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                        }else $amount = round($amount - $coupon->discount,2);
                         if($amount<0) $amount = 0;
                     }
                 } else {
                     $transaction = $this->findLastTransaction();
                     if ($transaction === null) {
                         if($coupon->form=='%'){
-                            $amount = round($amount * (100 - $coupon->discount)/100,2);
+                            if( $partnerDiscount && $coupon->discount < $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                            else $amount = round($amount * (100 - $coupon->discount)/100,2); 
                         }
                         else {
-                            $amount = round($amount - $coupon->discount,2);
+                            if( $partnerDiscount && $coupon->discount < $partnerDiscount * $amount / 100 ){
+                                $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                            }else $amount = round($amount - $coupon->discount,2);
                             if($amount<0) $amount = 0;
                         }
+                    }else{
+                        if( $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);        
                     }
                 }
+            }else{
+                if( $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
             }
             return $amount;
         }else{
@@ -474,6 +567,7 @@ class PaymentSubscription extends Model
         if ($this->postAction('cancel', 'Fitemos cancelled due to customer action')) {
             $this->status = 'Cancelled';
             $this->save();
+            $this->customer->removeFriendShip();
             return true;
         }
         return false;
@@ -496,7 +590,7 @@ class PaymentSubscription extends Model
         $this->save();
     }
     public function renewalSendMail($transaction){
-        $customer = Customer::find($this->customer_id);
+        $customer = $this->customer;
         list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
         $plan = SubscriptionPlan::find($planId);
         $subscription = new Subscription;
@@ -516,8 +610,30 @@ class PaymentSubscription extends Model
         $nextPaymentTotal = $paymentSubscription->nextPaymentAmount();
         Mail::to($customer->email)->send(new RenewalPaymentNotification($customer->first_name,$frequencyString,$frequency,$amount,$transaction->total,$coupon,date('d/m/Y',strtotime($transaction->done_date)),$nextPaymentDate,$nextPaymentTotal));
     }
-    public function firstSendMail($transaction){
-        $customer = Customer::find($this->customer_id);
+    public function sendFirstFreeMail($subscription){
+        $customer = $this->customer;
+        list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
+        if($customer==null){
+            $customer = Customer::find($customerId);
+        }
+        $plan = SubscriptionPlan::find($planId);
+        $frequencyString = $subscription->convertFrequencyString($frequency);
+        if($couponId){
+            $coupon = Coupon::find($couponId);
+        }else{
+            $coupon = null;
+        }
+        $cycles = $subscription->plan->free_duration;
+        $nextPaymentDate = date('d/m/Y',strtotime($subscription->start_date." +$cycles day"));
+        $nextPaymentTotal = $this->nextPaymentAmount($coupon);
+        if( $customer->user )SendEmail::dispatch($customer,new VerifyMail($customer->user));
+        NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
+        //$data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer'];
+        //Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
+        $customer->sendFirstWorkout();
+    }
+    public function sendFirstMail($transaction, $sendableFirstWorkout=true){
+        $customer = $this->customer;
         list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
         $plan = SubscriptionPlan::find($planId);
         $subscription = new Subscription;
@@ -530,12 +646,12 @@ class PaymentSubscription extends Model
         }
         $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
         $nextPaymentDate = date('d/m/Y',strtotime($paymentSubscription->getEndDate($transaction)));
-        $nextPaymentTotal = $paymentSubscription->nextPaymentAmount();
-        if($customer->user)SendEmail::dispatch($customer,new VerifyMail($customer->user));
+        $nextPaymentTotal = $paymentSubscription->nextPaymentAmount($coupon);
+        if($customer->user && $sendableFirstWorkout)SendEmail::dispatch($customer,new VerifyMail($customer->user));
         SendEmail::dispatch($customer,new FirstPaymentNotification($customer->first_name,$frequencyString,$frequency,$amount,$transaction->total,$coupon,date('d/m/Y',strtotime($transaction->done_date)),$nextPaymentDate,$nextPaymentTotal));
-        NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
+        if($sendableFirstWorkout)NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
         $data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer'];
         Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
-        $customer->sendFirstWorkout();
+        if($sendableFirstWorkout)$customer->sendFirstWorkout();
     }
 }

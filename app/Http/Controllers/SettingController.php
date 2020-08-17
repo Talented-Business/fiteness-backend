@@ -35,4 +35,23 @@ class SettingController extends Controller
         User::updateRolePermissions($id,$permissionIds);
         return response()->json(['status'=>'ok']);
     }
+    public function referralDiscount(){
+        $discount = Setting::getReferralDiscount();
+        return response()->json(['discount'=>$discount]);
+    }
+    public function updateReferralDiscount(Request $request){
+        $discount = $request->input('discount');
+        Setting::saveReferralDiscount($discount);
+        Coupon::whereType('Referral')->update(['discount'=>$discount]);
+        return response()->json(['status'=>'ok']);
+    }
+    public function tagLine(){
+        $tagLine = Setting::getTagLine();
+        return response()->json(['tagLine'=>$tagLine]);
+    }
+    public function updateTagLine(Request $request){
+        $tagLine = $request->input('tagLine');
+        Setting::saveTagLine($tagLine);
+        return response()->json(['status'=>'ok']);
+    }
 }

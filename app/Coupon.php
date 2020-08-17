@@ -16,8 +16,10 @@ class Coupon extends Model
     const TRIAL_AFTER = 'trial_after';
     const RENEWAL = 'renewal';
     const FIRST_PAY = 'renewal';
-    const COUPON_URL = 'https://www.fitemos.com/pricing?coupon=';
-    const DEFAULT = 'prueba30';
+    const COUPON_URL = '/pricing?coupon=';
+    const REFERRAL_URL = '/signup?referral=';
+    const DEFAULT = null;
+    const REFERRAL_NAME = 'referral';
     protected $fillable = ['code','name','mail','discount','renewal','form'];
     private $pageSize;
     private $statuses;
@@ -124,7 +126,7 @@ class Coupon extends Model
         $this->type = "Private";
         $this->discount = 30;
         $this->save();
-        $url = self::COUPON_URL.$this->code;
+        $url = env('APP_URL').self::COUPON_URL.$this->code;
         Mail::to($subscription->customer->email)->send(new CouponTrialBefore($subscription->customer->first_name,$url));
     }
     public function generatePrivateTrialAfter($subscription){
@@ -135,7 +137,7 @@ class Coupon extends Model
         $this->type = "Private";
         $this->discount = 30;
         $this->save();
-        $url = self::COUPON_URL.$this->code;
+        $url = env('APP_URL').self::COUPON_URL.$this->code;
         Mail::to($subscription->customer->email)->send(new CouponTrialAfter($subscription->customer->first_name,$url));
     }
     public static function scrape(){
@@ -158,8 +160,22 @@ class Coupon extends Model
     public function validate($customerId){
         if($this->status == 'Disabled') return false;
         if($this->type=='Public')return true;
+        if($this->type=='Referral')return true;
         if($this->customer_id == $customerId) return true;
         return false;
+    }
+    public static function findCouponWithReferral($id,$customerId){
+        if($id!=null){
+            $coupon = Coupon::find($id);
+            if($coupon && $coupon->status == "Active"){
+                if($coupon->type == "Referral"){
+                    if($coupon->customer->hasActiveSubscription())return $coupon;
+                }else {
+                    return $coupon;
+                }
+            }
+        }
+        return null;
     }
     public static function createRenewal($user){
         $service_id = 1;// for workouts

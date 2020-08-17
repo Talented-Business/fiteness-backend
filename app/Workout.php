@@ -92,7 +92,16 @@ class Workout extends Model
                 date('Y-m-d', strtotime('sunday this week', strtotime($date))),
             ];
         }
-        $columns = ['comentario','calentamiento','con_content', 'sin_content', 'strong_male', 'strong_female', 'fit', 'cardio','extra_sin', 'activo', 'blog'];
+        $columns  = ['comentario','image_path','blog'];
+        $primaryColumns = ['calentamiento','con_content', 'sin_content', 'strong_male', 'strong_female', 'fit', 'cardio','extra_sin', 'activo'];
+        foreach($primaryColumns as $column){
+            $columns[] = $column;
+            $columns[] = $column.'_note';
+            $columns[] = $column.'_timer_type';
+            $columns[] = $column.'_timer_work';
+            $columns[] = $column.'_timer_round';
+            $columns[] = $column.'_timer_rest';
+        }
         $result = Workout::whereIn('publish_date', $week)->get();
         $workouts = [];
         foreach($columns as $column){
@@ -106,7 +115,8 @@ class Workout extends Model
                     }
                 }
                 if ($record) {
-                    $contents[$index] = $record[$column];
+                    if($column == 'image_path' && $record[$column])$contents[$index] = env('APP_URL').$record[$column];
+                    else $contents[$index] = $record[$column];
                     //$workouts[] = ['con_content' => $record->con_content ? $record->con_content : "", 'sin_content' => $record->sin_content ? $record->sin_content : "", 'strong_male' => $record->strong_male ? $record->strong_male : "", 'strong_female' => $record->strong_female ? $record->strong_female : "", 'fit' => $record->fit ? $record->fit : "", 'cardio' => $record->cardio ? $record->cardio : "", 'activo' => $record->activo ? $record->activo : "", 'blog' => $record->blog ? $record->blog : ""];
                 } else {
                     $contents[$index] = '';
@@ -139,7 +149,27 @@ class Workout extends Model
             $workout->publish_date = $date;
         }
         $workout->{$column} = $content;
+        switch($column){
+            case "comentario":
+            break;
+            case "blog":
+            break;
+            default:
+            $workout->{$column.'_note'} = $request->input('note');
+            $workout->{$column.'_timer_type'} = $request->input('timer_type');
+            $workout->{$column.'_timer_work'} = $request->input('timer_work');
+            if($request->exists('timer_round'))$workout->{$column.'_timer_round'} = $request->input('timer_round');
+            if($request->exists('timer_rest'))$workout->{$column.'_timer_rest'} = $request->input('timer_rest');
+        }
         $workout->save();
+        if($column == 'comentario' && $request->hasFile('image')&&$request->file('image')->isValid()){ 
+            $fileName = $workout->id . '.' . $request->file('image')->extension();
+            $basePath = 'media/workout/' . date('Y');
+            $request->file('image')->storeAs($basePath, $fileName);
+            $workout->image_path = '/storage/' . $basePath . '/' . $fileName;
+            $workout->save();
+            $workout->image_path = env('APP_URL').$workout->image_path;
+        }        
         return $workout;
     }
     public static function preview($request)

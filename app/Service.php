@@ -63,6 +63,7 @@ class Service extends Model
         $memberships = $this->memberships;
         foreach($memberships as $membership){
             if($membership->type=="Paid")$paid = $membership;
+            if($membership->type=="Free")$free = $membership;
         }
         if(isset($paid)){
             $this['monthly'] = $paid->month_1;
@@ -75,6 +76,10 @@ class Service extends Model
             if($this['yearly'] == null)$this['yearly']="";
             $this['frequency'] = $paid->frequency;
             if($this['frequency'] == null)$this['frequency']="";
+        }
+        if(isset($free)){
+            $this['free_duration'] = $free->free_duration;
+            if($this['free_duration'] == null)$this['free_duration']="";
         }
         if($this->photo_path)  $this->photo_path = url('storage/'.$this->photo_path);
     }
@@ -96,6 +101,7 @@ class Service extends Model
         $memberships = $this->memberships;
         foreach($memberships as $membership){
             if($membership->type=="Paid")$paid = $membership;
+            if($membership->type=="Free")$free = $membership;
         }
         $savePaid = false;
         if($request->exists('monthly')){
@@ -120,6 +126,10 @@ class Service extends Model
             $paid->frequency = $request->input('frequency');
         }
         if($savePaid)$paid->save();
+        if($free && $request->exists('free_duration')){
+            $free->free_duration = $request->input('free_duration');
+            $free->save();
+        }
     }
     public function assignSearch($request){
         foreach(self::$searchableColumns as $property){

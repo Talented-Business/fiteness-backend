@@ -24,19 +24,16 @@ class StaticWorkout extends Model
         for($i=0;$i<7;$i++){
             $contents[$i] = [0=>null,1=>null,2=>null,3=>null,4=>null,5=>null,6=>null];
             for($j=0;$j<7;$j++){
-                $contents[$i][$j] = [
-                    "comentario"=>"",
-                    "calentamiento"=>"",
-                    "con_content"=>"",
-                    "sin_content"=>"",
-                    "extra_sin"=>"",
-                    "strong_male"=>"",
-                    "strong_female"=>"",
-                    "fit"=>"",
-                    "cardio"=>"",
-                    "activo"=>"",
-                    "blog"=>""                
-                ];
+                $contents[$i][$j] = ["comentario"=>"","image_path"=>"","blog"=>""];
+                $columns = ["calentamiento","con_content","sin_content","extra_sin","strong_male","strong_female","fit","cardio","activo"];
+                foreach($columns as $column){
+                    $contents[$i][$j][$column] = "";
+                    $contents[$i][$j][$column.'_note'] = "";
+                    $contents[$i][$j][$column.'_timer_type'] = "";
+                    $contents[$i][$j][$column.'_timer_work'] = "";
+                    $contents[$i][$j][$column.'_timer_round'] = "";
+                    $contents[$i][$j][$column.'_timer_rest'] = "";
+                }
             }
         }
         foreach($records as $record){
@@ -45,6 +42,7 @@ class StaticWorkout extends Model
                 $contents[$day] = [0=>null,1=>null,2=>null,3=>null,4=>null,5=>null,6=>null];
             }
             $weekDay = self::convertWeekDay($record->weekdate);
+            if(isset($record->image_path)&&$record->image_path)$record->image_path = env('APP_URL').$record->image_path;
             $contents[$day][$weekDay] = $record;
         }
         return $contents;
@@ -116,7 +114,27 @@ class StaticWorkout extends Model
             $workout->weekdate = $weekdate;
         }
         $workout->{$column} = $content;
+        switch($column){
+            case "comentario":
+            break;
+            case "blog":
+            break;
+            default:
+            $workout->{$column.'_note'} = $request->input('note');
+            $workout->{$column.'_timer_type'} = $request->input('timer_type');
+            $workout->{$column.'_timer_work'} = $request->input('timer_work');
+            if($request->exists('timer_round'))$workout->{$column.'_timer_round'} = $request->input('timer_round');
+            if($request->exists('timer_rest'))$workout->{$column.'_timer_rest'} = $request->input('timer_rest');
+        }
         $workout->save();
+        if($column == 'comentario' && $request->hasFile('image')&&$request->file('image')->isValid()){ 
+            $fileName = $workout->id . '.' . $request->file('image')->extension();
+            $basePath = 'media/static-workout/' . date('Y');
+            $request->file('image')->storeAs($basePath, $fileName);
+            $workout->image_path = '/storage/' . $basePath . '/' . $fileName;
+            $workout->save();
+            $workout->image_path = env('APP_URL').$workout->image_path;
+        }        
         return $workout;
     }
     public static function preview($request)

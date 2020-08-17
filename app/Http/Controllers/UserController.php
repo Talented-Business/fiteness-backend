@@ -66,6 +66,13 @@ class UserController extends Controller
             'user' => $user
         ]);
     }
+    public function me(Request $request){
+        $user = $request->user('api');
+        $me = User::findDetails($user);
+        return response()->json([
+            'user' => $me
+        ]);
+    }
     public function update($id,Request $request){
         $validator = Validator::make($request->all(), array('email'=>['required','max:255','unique:users,email,'.$id]));
         if ($validator->fails()) {
@@ -103,43 +110,61 @@ class UserController extends Controller
         $user->save();
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    public function updateEmail(Request $request){
+        $user = $request->user('api');
+        $validator = Validator::make($request->all(), array('email'=>['required','max:255','unique:users,email,'.$user->id]));
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()],422);
+        }
+        if($user->type=="admin" ){
+            return response()->json(['errors'=>['auth'=>'authorization']],422);
+        }
+        if($request->exists('email')){
+            $user->email = $request->input('email');
+            $user->save();
+            $user->customer->email = $request->input('email');
+            $user->customer->save();
+        }
+        return response()->json(array('status'=>'ok','user'=>$user));
+    }
+    public function updatePassword(Request $request){
+        $user = $request->user('api');
+        if($request->exists('password')){
+            if( $request->password != $request->confirm_password ){
+                return response()->json(['errors'=>['password'=>'password_unmatched']],422);
+            }
+            $user->password = Hash::make($request->password);
+            $user->save();
+        }
+        return response()->json(array('status'=>'ok','user'=>$user));
+    }
+    public function updateImage(Request $request){
+        $user = $request->user('api');
+        if($user&&$request->hasFile('image')&&$request->file('image')->isValid()){ 
+            $photoPath = $request->image->store('media/user');
+            $file = storage_path('app/public/'.$photoPath);
+            //$this->cropImage($file,200,200,$file);
+            if(PHP_OS == 'Linux'){
+                $output = shell_exec("mogrify -auto-orient $file");
+                sleep(1);
+            }
+            $user->avatar = $photoPath;
+            $user->save();
+        }        
+        return response()->json(array('status'=>'ok','user'=>$user));
+    }
     public function customerUpdate(Request $request){
         $user = $request->user('api');
         $validator = Validator::make($request->all(), Customer::validateUserSettingRules($user->id,$user->customer->id));
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()],422);
         }
-        $password = false;
-        if($request->exists('password')){
-            /*if (Hash::check($request->current_password, $user->password)==false) {
-                return response()->json(array('status'=>'failed','errors'=>['password'=>'current_password_falied']));
-            }*/
-            if( $request->password != $request->confirm_password ){
-                return response()->json(['errors' => ['password'=>[['error'=>'password_unmatched']]]],422);
-            }
-            $password = true;
-        }
-        if($request->exists('email')){
-            $user->email = $request->input('email');
-        }
-        if($password)$user->password = Hash::make($request->password);
-        if($request->hasFile('image')&&$request->file('image')->isValid()){ 
-            $photoPath = $request->image->store('media/user');
-            $file = storage_path('app/public/'.$photoPath);
-            $this->cropImage($file,160,237,$file);
-            if(PHP_OS == 'Linux'){
-                $output = shell_exec("mogrify -auto-orient $file");
-                sleep(1);
-            }
-            $user->avatar = $photoPath;
-        }        
         $user->name = $request->input('first_name').' '.$request->input('last_name');
         $user->save();
         $user->customer->first_name = $request->input('first_name');
         $user->customer->last_name = $request->input('last_name');
-        $user->customer->active_email = $request->input('active_email');
-        $user->customer->email = $request->input('customer_email');
-        $user->customer->active_whatsapp = $request->input('active_whatsapp');
+        $user->customer->gender = $request->input('gender');
+        $user->customer->current_height = $request->input('current_height');
         $user->customer->whatsapp_phone_number = $request->input('whatsapp_phone_number');
         $user->customer->country = $request->input('country');
         $user->customer->country_code = $request->input('country_code');
@@ -152,6 +177,12 @@ class UserController extends Controller
             }
         }
         $user->customer->save();
+        return response()->json(array('status'=>'ok','user'=>$user));
+    }
+    public function deleteImage(Request $request){
+        $user = $request->user('api');
+        $user->avatar = null;
+        $user->save();
         return response()->json(array('status'=>'ok','user'=>$user));
     }
     private function cropImage($sourcePath, $width=200,$height=230, $destination = null) {

@@ -29,12 +29,12 @@ class Customer extends Model
     }
     public static function validateUserSettingRules($user_id,$customer_id){
         return array(
-            'email'=>'required|max:255|unique:users,email,'.$user_id,
-            'customer_email'=>'required|max:255|unique:customers,email,'.$customer_id,
+            //'email'=>'required|max:255|unique:users,email,'.$user_id,
+            //'customer_email'=>'required|max:255|unique:customers,email,'.$customer_id,
             'first_name'=>['required','max:255'],
             'last_name'=>['required','max:255'],
-            'active_email'=>['required'],
-            'active_whatsapp'=>['required'],
+            'current_height'=>['required'],
+            'gender'=>['required'],
             'whatsapp_phone_number'=>'max:255',
         );
     }
@@ -419,6 +419,130 @@ class Customer extends Model
         $workoutCondition = Condition::find($level);
         return [$workoutCondition,$weightsCondition,$objective,$gender];
     }
+    private function findWorkoutCurrentDate(){
+        $userTimezone = new \DateTimeZone($this->timezone);
+        $objDateTime = new \DateTime('NOW');
+        $objDateTime->setTimezone($userTimezone);
+        $fiveHours = \DateInterval::createFromDateString('+5 hours');
+        $objDateTime->add($fiveHours);
+        return $objDateTime->format('Y-m-d');
+    }
+    private function setActiveWorkoutSubscription(){
+        $subscription = Subscription::whereCustomerId($this->id)->where(function($query){
+            $query->whereHas('plan', function($q){
+                $q->where('service_id','=','1');
+            });
+        })->first();
+        $this->activeWorkoutSubscription = $subscription;
+    }
+    private function findSendableWorkout($today){
+        list($workoutCondition,$weightsCondition,$objective,$gender) = $this->findWorkoutFilters($today);
+        if($this->activeWorkoutSubscription->isNewWeek($today)){
+            $weekdate = date('w',strtotime($today))-1;
+            if($weekdate<0)$weekdate+=7;
+            if($weekdate>6)$weekdate-=7;
+            $fromDate = $this->activeWorkoutSubscription->getFirstWorkoutStartDate();
+            if(date('Y-m-d',strtotime($fromDate))>$today){
+                $workout = null;
+            }else{
+                $fromDate = date('w',strtotime($fromDate))-1;
+                if($fromDate<0)$fromDate+=7;
+                if($fromDate>6)$fromDate-=7;
+                $workout = StaticWorkout::sendable($fromDate,$weekdate,$today,$workoutCondition,$weightsCondition,$objective,$gender,$this->id);    
+            }
+        }else{
+            $workout = Workout::sendable($today,$workoutCondition,$weightsCondition,$objective,$gender,$this->id);
+        }
+        return $workout;
+    }
+    public function findPartnerDiscount(){
+        $partners = Customer::whereFriendId($this->id)->get();
+        $hasPartner = false;
+        foreach($partners as $partner){
+            if($partner->hasActiveSubscription()){
+                $hasPartner = true;
+            }
+        }
+        if($hasPartner){
+            return Setting::getReferralDiscount();
+        }
+        return false;
+    }
+    public function changeLevel(){
+        $level = LevelTest::whereCustomerId($this->id)->orderBy('recording_date','desc')->first();
+        if($level){
+            $current = $level->repetition;
+        }else{
+            $current = 0;
+        }
+        if($current<39){
+            $this->current_condition = 1;
+        }else if($current<59){
+            $this->current_condition = 2;
+        }else if($current<79){
+            $this->current_condition = 3;
+        }else if($current<39){
+            $this->current_condition = 4;
+        }else{
+            $this->current_condition = 4;
+        }
+        $this->save();
+    }
+    public function findWorkouts($date=null){
+        $workouts = ['current'=>null,'previous'=>null,'next'=>null];
+        if($this->hasActiveSubscription()){
+            if($this->activeWorkoutSubscription==null){
+                $this->setActiveWorkoutSubscription();
+            }
+            if($date == null){
+                $today = $this->findWorkoutCurrentDate();
+            }else{
+                $today = $date;
+            }
+            $i = 0;
+            setlocale(LC_ALL, "es_ES", 'Spanish_Spain', 'Spanish');
+            //$today = date('Y-m-d', strtotime('+1 days', strtotime($today)));
+            while( $workouts['current'] == null){
+                $workout = $this->findSendableWorkout($today);
+                if($workout){
+                    $workouts['current'] = ['date'=>$workout['date'],'short_date'=>$workout['short_date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
+                    $previousDate = date('Y-m-d', strtotime('-1 days', strtotime($today)));
+                    $nextDate = date('Y-m-d', strtotime('+1 days', strtotime($today)));
+                }else{
+                    $today = date('Y-m-d', strtotime('-1 days', strtotime($today)));
+                    $i++;
+                    if($i>100){break;}
+                }
+            }
+            if(isset($previousDate)){
+                $today = $previousDate;
+                while( $workouts['previous'] == null){
+                    $workout = $this->findSendableWorkout($today);
+                    if($workout){
+                        $workouts['previous'] = ['date'=>$workout['date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
+                    }else{
+                        $today = date('Y-m-d', strtotime('-1 days', strtotime($today)));
+                        $i++;
+                        if($i>100)break;
+                    }
+                }
+            }
+            if(isset($nextDate)){
+                $today = $nextDate;
+                while( $workouts['next'] == null){
+                    $workout = $this->findSendableWorkout($today);
+                    if($workout){
+                        $workouts['next'] = ['date'=>$workout['date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
+                    }else{
+                        $today = date('Y-m-d', strtotime('+1 days', strtotime($today)));
+                        $i++;
+                        if($i>100)break;
+                    }
+                }
+            }
+        }
+        return $workouts;
+    }
     private function replace($content){
         $content = str_ireplace("{h1}","<h1>",$content);
         $content = str_ireplace("{/h1}","</h1>",$content);
@@ -430,50 +554,33 @@ class Customer extends Model
         }
         return $content;
     }
+    public function setFriendShip($coupon){
+        if( $coupon && $coupon->type=="Referral"){
+            $friend = Customer::find($coupon->customer_id);
+            if( $friend->hasActiveSubscription() ){
+                $this->friend_id = $coupon->customer_id;
+                $this->friend = "yes";
+                $this->save();
+            }
+        }
+    }
+    public function removeFriendShip(){
+        $this->friend_id = null;
+        $this->friend = "no";
+        $this->save();
+    }
     public function recentWorkouts(){
         $workouts = [];
         if($this->hasActiveSubscription()){
             if($this->activeWorkoutSubscription==null){
-                $subscription = Subscription::whereCustomerId($this->id)->where(function($query){
-                    $query->whereHas('plan', function($q){
-                        $q->where('service_id','=','1');
-                    });
-                })->first();
-                $this->activeWorkoutSubscription = $subscription;
+                $this->setActiveWorkoutSubscription();
             }
-            $userTimezone = new \DateTimeZone($this->timezone);
-            $objDateTime = new \DateTime('NOW');
-            $objDateTime->setTimezone($userTimezone);
-            $fiveHours = \DateInterval::createFromDateString('+5 hours');
-            $objDateTime->add($fiveHours);
-            $today = $objDateTime->format('Y-m-d');
-            list($workoutCondition,$weightsCondition,$objective,$gender) = $this->findWorkoutFilters($today);
+            $today = $this->findWorkoutCurrentDate();
             $workouts = [];
             $i = 0;
-            $contentFilters = ['Workout','Extra','Descanso Activo','Descanso Blog'];
             setlocale(LC_ALL, "es_ES", 'Spanish_Spain', 'Spanish');
             while(count($workouts)<3){
-                $userTimezone = new \DateTimeZone($this->timezone);
-                $objDateTime = new \DateTime('NOW');
-                $objDateTime->setTimezone($userTimezone);
-                setlocale(LC_ALL, "es_ES", 'Spanish_Spain', 'Spanish');
-                list($workoutCondition,$weightsCondition,$objective,$gender) = $this->findWorkoutFilters($today);
-                if($this->activeWorkoutSubscription->isNewWeek($today)){
-                    $weekdate = date('w',strtotime($today))-1;
-                    if($weekdate<0)$weekdate+=7;
-                    if($weekdate>6)$weekdate-=7;
-                    $fromDate = $this->activeWorkoutSubscription->getFirstWorkoutStartDate();
-                    if(date('Y-m-d',strtotime($fromDate))>$today){
-                        $workout = null;
-                    }else{
-                        $fromDate = date('w',strtotime($fromDate))-1;
-                        if($fromDate<0)$fromDate+=7;
-                        if($fromDate>6)$fromDate-=7;
-                        $workout = StaticWorkout::sendable($fromDate,$weekdate,$today,$workoutCondition,$weightsCondition,$objective,$gender,$this->id);    
-                    }
-                }else{
-                    $workout = Workout::sendable($today,$workoutCondition,$weightsCondition,$objective,$gender,$this->id);
-                }
+                $workout = $this->findSendableWorkout($today);
                 if($workout){
                     $sentences = explode("\n",$workout['content'][0]);
                     foreach($sentences as $index=>$sentence){
@@ -529,6 +636,11 @@ class Customer extends Model
             }
         }
         return $workout;
+    }
+    public function findReferralCoupon(){
+        $referralCoupon = Coupon::whereType('Referral')->whereCustomerId($this->id)->whereStatus('Active')->first();
+        if( $referralCoupon && $this->getActiveWorkoutSubscription() )return $referralCoupon;
+        return null;
     }
     public function sendFirstWorkout(){
         $userTimezone = new \DateTimeZone($this->timezone);
@@ -655,6 +767,72 @@ class Customer extends Model
         $day = $interval->format('%d');
         return $year*12 + $month + round($day/30,2);
     }
+    public function findReferralUrl(){
+        $code = "r".$this->id;
+        $coupon = Coupon::whereCode($code)->first();
+        if($coupon == null){
+            $coupon = new Coupon;
+            $coupon->type = "Referral";
+            $coupon->name = Coupon::REFERRAL_NAME;
+            $coupon->code = $code;
+            $coupon->customer_id = $this->id;
+            $coupon->discount = Setting::getReferralDiscount();
+            $coupon->renewal = 1;
+            $coupon->save();
+        }
+        return env('APP_URL').Coupon::REFERRAL_URL.$code;
+    }
+    public function findPartners(){
+        $partners = Customer::whereFriendId($this->id)->get();
+        foreach($partners as $partner){
+            if($partner->user->avatar){
+                $partner['avatarUrls'] = [
+                    'max'=>url("storage/".$partner->user->avatar),
+                    'large'=>url("storage/".$partner->user->avatar),
+                    'medium'=>url("storage/".$partner->user->avatar),
+                    'small'=>url("storage/".$partner->user->avatar),
+                ];
+            }else{
+                if($partner->gender=="Male"){
+                    $partner['avatarUrls'] = [
+                        'max'=>url("storage/media/avatar/X-man-large.jpg"),
+                        'large'=>url("storage/media/avatar/X-man-large.jpg"),
+                        'medium'=>url("storage/media/avatar/X-man-medium.jpg"),
+                        'small'=>url("storage/media/avatar/X-man-small.jpg"),
+                    ];
+                }else{
+                    $partner['avatarUrls'] = [
+                        'max'=>url("storage/media/avatar/X-woman-large.jpg"),
+                        'large'=>url("storage/media/avatar/X-woman-large.jpg"),
+                        'medium'=>url("storage/media/avatar/X-woman-medium.jpg"),
+                        'small'=>url("storage/media/avatar/X-woman-small.jpg"),
+                    ];
+                }
+            }
+        }
+        return $partners;
+    }
+    public function findCurrentSurvey(){
+        $activeSurveys = Survey::active();
+        foreach($activeSurveys as $survey){
+            $items = $survey->items;
+            $surveyExists = false;
+            foreach($items as $item){
+                $report = SurveyReport::whereCustomerId($this->id)->whereSurveyItemId($item->id)->first();
+                if($report){
+                    $surveyExists = true;
+                    continue;
+                }
+            }
+            if(!$surveyExists){
+                foreach($survey->items as $item){
+                    $item->options;
+                }
+                return $survey;
+            }
+        }
+        return null;
+    }
     public static function export($customers){
         $tenPercentCoupons = Coupon::whereType('Private')->whereDiscount('10')->whereForm('%')->get();
         $tenPercentCouponsIds = [];
@@ -677,7 +855,10 @@ class Customer extends Model
         'FECHA PRIMER PAGO',//First Payment Date
         'MESES ENTRE PAGO Y REGISTRO',// new the count of months between registeration date and first payment date.
         'FECHA CANCELACIÓN SUSCRIPCIÓN',//new cancellation date
-        'Cancellation',//cancellation reason
+        //'Cancellation',//cancellation reason
+        'Stars',
+        'Motivo',
+        'Feedback',
         'Tiempo Activo En Suscripción Meses',//new the count of months of current active subscription
         'Cantidad de Renovaciones',//new the count of renewaling
         'MESES PAGADOS',//new the count of months paid
@@ -693,7 +874,7 @@ class Customer extends Model
         'IMC inicial','IMC actual','Diferencia IMC','Workouts Ingrsados','Objetivo',
         'Edad','País',// country
         'Click on videos','Click on email links','Click on Blogs',
-        'Tiempo activo en website','Actualizaciones totales dentro del perfil','contact request'
+        'Tiempo activo en website','Actualizaciones totales dentro del perfil','contact request','¿Cómo nos conociste?'
         ];
         $total = 0;
         foreach($customers as $index=>$customer){
@@ -704,7 +885,9 @@ class Customer extends Model
             $currentActiveSubscriptionProgress = '';
             $renewalCount = 0;
             $cancelledNow = 'no';
-            $cancellationReason = '';
+            $stars = '';
+            $reason = '';
+            $feedback = '';
             if($customer->user->active == 0){
                 $status = "Disabled";
             }else{
@@ -714,16 +897,19 @@ class Customer extends Model
                     if($subscription->status == "Active"){
                         $status = "Active";
                         if($subscription->end_date)$status = "Leaving";
-                        $cancellationDate = $subscription->cancelled_date;
-                        $paymentSubscription = PaymentSubscription::whereSubscriptionId($subscription->transaction->payment_subscription_id)->first();
+                        if($subscription->transaction)$paymentSubscription = PaymentSubscription::whereSubscriptionId($subscription->transaction->payment_subscription_id)->first();
+                        else $paymentSubscription = null;
                         if($paymentSubscription)$currentActiveSubscriptionProgress = self::calculateMonthDiff($paymentSubscription->start_date,date('Y-m-d')).'m';
-                        if($subscription->plan_id == 1) $items[$index]['trial'] = 1;
-                        if($subscription->status == "Cancelled"){
-                            $status = "Cancelled";
-                        }
-                        $cancelledNow = $subscription->cancelled_now;
-                        $cancellationReason = $subscription->cancelled_reason;
+                        //if($subscription->plan_id == 1) $items[$index]['trial'] = 1;
                     }
+                    if($subscription->status == "Cancelled"){
+                        $status = "Cancelled";
+                    }
+                    $cancellationDate = $subscription->cancelled_date;
+                    $cancelledNow = $subscription->cancelled_now;
+                    $stars = $subscription->quality_level;
+                    if($subscription->cancelled_radio_reason)$reason = Subscription::CANCELLED_REASONS[$subscription->cancelled_radio_reason].' '.$subscription->cancelled_radio_reason_text;
+                    $feedback = $subscription->recommendation;
                 }
             }
             $record = $customer->findRecord();
@@ -798,6 +984,18 @@ class Customer extends Model
                 $renewalCount = PaymentSubscription::whereCustomerId($customer->id)->where('start_date','>',$firstTransaction->done_date)->count();
                 //if($renewalCount>0)$renewalCount-=1;
             }
+            $question = "";
+            switch($customer->qbligatory_question){
+                case "recommend":
+                    $question = "Me lo recomendaron";
+                break;
+                case "advertise":
+                    $question = "Me llegó la publicidad";
+                break;
+                case "long":
+                    $question = "Los conozco hace un tiempo";
+                break;
+            }
             $itemsArray[] = [$customer->id,
                 $customer->first_name,
                 $customer->last_name,
@@ -816,7 +1014,10 @@ class Customer extends Model
                 $customer->first_payment_date, //'FECHA PRIMER PAGO',//First Payment Date
                 $firstDateDiff,// new the count of months between registeration date and first payment date.
                 $cancellationDate,//new cancellation date
-                $cancellationReason, // new cancellation reason
+                //$cancellationReason, // new cancellation reason
+                $stars,
+                $reason,
+                $feedback,
                 $currentActiveSubscriptionProgress,//new the count of months of current active subscription
                 $renewalCount,//new the count of renewaling
                 $paidMonths,//new the count of total months paid
@@ -846,11 +1047,18 @@ class Customer extends Model
                 $record->session_count?$record->session_count*10:null,
                 $record->edit_count,
                 $record->contact_count,
+                $question
             ];
         }
         $export = new CustomersExport([
             $itemsArray
         ]);
         return $export;
+    }
+    public function currentDate(){
+        $userTimezone = new \DateTimeZone($this->timezone);
+        $objDateTime = new \DateTime('NOW');
+        $objDateTime->setTimezone($userTimezone);
+        return $objDateTime->format('Y-m-d');
     }
 }

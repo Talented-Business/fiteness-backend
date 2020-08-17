@@ -23,6 +23,7 @@ class Cart extends Model
     }
     public static function inside(Request $request){
         $frequency = $request->input('frequency');
+        if($frequency == 'Free') return;
         $user = $request->user('api');
         $token = $request->user('api')->token();
         $session = Session::whereToken($token->id)->first();

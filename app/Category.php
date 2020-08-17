@@ -22,15 +22,11 @@ class Category extends Model
             $this->{$property} = $request->input($property);
         }
     }
+
     public function search(){
         $where = Category::where(function($query){
-            $index = 0;
-            foreach(self::$searchableColumns as $property){
-                if($this->{$property}!=null){
-                    if($index == 0)$query->Where($property,'like','%'.$this->{$property}.'%');
-                    else $query->orWhere($property,'like','%'.$this->{$property}.'%');
-                    $index++;
-                }
+            if($this->search!=null){
+                $query->where('name','like','%'.$this->search.'%');
             }
         });
         $currentPage = $this->pageNumber+1;

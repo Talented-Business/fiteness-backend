@@ -105,11 +105,12 @@ class Transaction extends Model
                 $transaction->type = 1;
             break;
         }
+        $referralCoupon = Coupon::findCouponWithReferral($couponId,$customerId);
         $transaction->plan_id = $planId;
         $transaction->content = 'nmi renewal';
-        $transaction->coupon_id = $couponId;
+        if($referralCoupon)$transaction->coupon_id = $referralCoupon->id;
         $transaction->payment_subscription_id = $paymentSubscription->subscription_id;
-        $total = $paymentSubscription->nextPaymentAmount();
+        $total = $paymentSubscription->nextPaymentAmount($referralCoupon);
         $transaction->total = $total;
         $transaction->done_date = date('Y-m-d H:i:s');
         $subscription = new Subscription;

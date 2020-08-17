@@ -9,10 +9,13 @@
     "license": "MIT",
     "require": {
         "php": "^7.2",
+        "barryvdh/laravel-dompdf": "^0.8.6",
         "fahim/laravel5-paypal-ipn": "1.0.*",
         "fideloper/proxy": "^4.0",
         "google/apiclient": "^2.4",
         "guzzlehttp/guzzle": "^6.5",
+        "guzzlehttp/guzzle-services": "^1.1",
+        "intervention/image": "^2.5",
         "laravel/framework": "^6.7",
         "laravel/passport": "^8.0",
         "laravel/socialite": "^4.3",

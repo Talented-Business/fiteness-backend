@@ -7,6 +7,7 @@ use App\Subscription;
 use App\PaymentSubscription;
 use App\Transaction;
 use App\Customer;
+use App\Coupon;
 use App\Record;
 use App\User;
 use App\Setting;
@@ -67,10 +68,10 @@ class FindTransactions extends Command
             $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
             if($paymentSubscription)$paymentSubscription->renewalSendMail($transaction);
         }
-        if(true){
+        if(false){
             $transaction = Transaction::find(1452);
             $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
-            if($paymentSubscription)$paymentSubscription->firstSendMail($transaction);
+            if($paymentSubscription)$paymentSubscription->sendFirstMail($transaction);
         }
         if(false){
             $email = "sui201837@gmail.com";
@@ -222,7 +223,7 @@ class FindTransactions extends Command
                 $transaction = Transaction::whereCustomerId($id)->first();
                 $paymentSubscription = PaymentSubscription::whereCustomerId($id)->first();
                 $now = $paymentSubscription->updateSubscription($transaction);
-                $paymentSubscription->firstSendMail($transaction);
+                $paymentSubscription->sendFirstMail($transaction);
             }
         }
         if(false){
@@ -230,6 +231,67 @@ class FindTransactions extends Command
             var_dump(method_exists($paymentSubscription,'cancelChangedPaymentSubscriptions'));
             $paymentSubscription->cancelChangedPaymentSubscriptions();
         }
+        if(false){
+            $this->sendFirstFreeEmail();
+        }
+        if(false){
+            $this->payFreeFirst();
+        }
+        if(false){
+            $this->setFriend();
+        }
+        if(false){
+            $this->removeFriend();
+        }
+        if(false){
+            $this->nextPaymentAmount();
+        }
+        if(false){
+            $this->currentWorkoutPeriod();
+        }
+        if(true){
+            $this->getImageSizes();
+        }
+    }
+    private function getImageSizes(){
+        $sizes = Setting::IMAGE_SIZES;
+        $sizes = array_values($sizes);
+        $y = [];
+        foreach($sizes as $size){
+            $s = explode('X',$size);
+            $y[] = $s;
+        }
+        print_r($y);
+    }
+    private function currentWorkoutPeriod(){
+        $subscription = Subscription::find(760);
+        //$text = $subscription->currentWorkoutPeriod();
+        $text = $subscription->nextWorkoutPlan();
+        print_r($text);
+    }
+    private function nextPaymentAmount(){
+        $paymentSubscription = PaymentSubscription::find(972);
+        $referralCoupon = Coupon::find(60);
+        $amount = $paymentSubscription->nextPaymentAmount($referralCoupon);
+        print_r($amount);
+    }
+    private function removeFriend(){
+        $customer = Customer::whereEmail("rudy.ralison@arneg.com.pa")->first();
+        if($customer)$customer->removeFriendShip();
+    }
+    private function payFreeFirst(){
+        $subscription = Subscription::find(751);
+        $subscription->scrapingFree();
+    }
+    private function sendFirstFreeEmail(){
+        $subscription = Subscription::find(751);
+        $paymentSubscription = PaymentSubscription::wherePlanId($subscription->payment_plan_id)->first();
+        if($paymentSubscription)$paymentSubscription->sendFirstFreeMail($subscription);
+    }
+    private function setFriend(){
+        $coupon = Coupon::find(70);
+        $customer = Customer::whereEmail("sui201842@outlook.com")->first();
+        if($customer&&$coupon)$customer->setFriendShip($coupon);
     }
     function checkdnsrr($hostName, $recType = '') 
     { 
@@ -255,7 +317,7 @@ class FindTransactions extends Command
         $paymentPlan = PaymentPlan::createOrUpdate($plan, $customer->id, $coupon, $frequency,'nmi');
         $subscription = Subscription::findOrCreate($customer->id,$plan, $coupon,$frequency,'nmi');
         $paymentSubscription = new PaymentSubscription;
-        list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan,true);
+        list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan);
         $transaction = Transaction::generate($paymentSubscription,$plan,$subscription);
         $nmiCustomerId = time();
         $tocken = new PaymentTocken;

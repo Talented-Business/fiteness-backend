@@ -103,9 +103,29 @@ trait WorkoutTrait
         }
         return $results;
     }
+    private static function getNotes($record, $slug){
+        $result = null;
+        if(isset($record->{$slug})&&$record->{$slug}){
+            $result = ['content'=>$record->{$slug},'note'=>$record->{$slug.'_note'}];
+            if(isset($record->{$slug.'_timer_type'}) && $record->{$slug.'_timer_type'}){
+                $result['timer_type'] = $record->{$slug.'_timer_type'};
+                $result['timer_work'] = $record->{$slug.'_timer_work'};
+                if($record->{$slug.'_timer_type'}=='tabata'){
+                    $result['timer_round'] = $record->{$slug.'_timer_round'};
+                    $result['timer_rest'] = $record->{$slug.'_timer_rest'};
+                }
+            }
+        }
+        return $result;
+    }
     private static function findSendableContent($record,$publishDate, $workoutCondition, $weightsCondition, $objective, $gender,$customerId=null){
         $weekday = strtolower(date('l', strtotime($publishDate)));
         if (isset($workoutCondition[$weekday]) && $workoutCondition[$weekday]) {
+            $block = ['content'=>$record->comentario];
+            if($record->image_path)$block['image_path'] = env('APP_URL').$record->image_path;
+            $blocks = [$block];
+            $block = self::getNotes($record,'calentamiento');
+            if($block)$blocks[] = $block;
             $content = $record->comentario."\n".$record->calentamiento;
             $sinContent = false;
             $blog = false;
@@ -116,20 +136,28 @@ trait WorkoutTrait
             if (strpos($workoutFilter, 'Workout')!==false) {
                 if ($sinContent) {
                     $content = $content."\n".$record->sin_content;
+                    $block = self::getNotes($record,'sin_content');
+                    if($block)$blocks[] = $block;
                 } else {
                     $content = $content."\n".$record->con_content;
+                    $block = self::getNotes($record,'con_content');
+                    if($block)$blocks[] = $block;
                 }
             }
+            $objectKey = null;
             if ($objective == "strong") {
                 if ($gender == "Male") {
                     $objectiveContent = $record->strong_male;
+                    $objectKey = "strong_male";
                 } else {
                     $objectiveContent = $record->strong_female;
+                    $objectKey = "strong_female";
                 }
 
             } else {
                 if (isset($record[$objective])) {
                     $objectiveContent = $record[$objective];
+                    $objectKey = $objective;
                 } else {
                     $objectiveContent = "";
                 }
@@ -138,29 +166,54 @@ trait WorkoutTrait
             if (strpos($workoutFilter, 'Extra')!==false ) {
                 if($sinContent){
                     $content = $content . "\n" . $record->extra_sin;
-                }else $content = $content . "\n" . $objectiveContent;
+                    $block = self::getNotes($record,'extra_sin');
+                    if($block)$blocks[] = $block;
+                }else {
+                    $content = $content . "\n" . $objectiveContent;
+                    if($objectKey ){
+                        $block = self::getNotes($record,$objectKey);
+                        if($block)$blocks[] = $block;
+                    }
+                }
             }
 
             if (strpos($workoutFilter, 'Activo')!==false) {
                 $content = $content . "\n" .$record->activo;
+                $block = self::getNotes($record,'activo');
+                if($block)$blocks[] = $block;
             }
             if (strpos($workoutFilter, 'Blog')!==false) {
-                $content = $record->blog;
                 $blog = true;
+                if($record->blog){
+                    $content = $record->blog;
+                    $blocks = [['content'=>$record->blog]];    
+                }else{
+                    $content = null;
+                    $blocks = [];
+                }
             }
 
-            $spanishDate = ucfirst(iconv('ISO-8859-2', 'UTF-8', strftime("%A %d de %B del %Y", strtotime($publishDate))));
+            $spanishDate = ucfirst(iconv('ISO-8859-2', 'UTF-8', strftime("%A, %d de %B del %Y", strtotime($publishDate))));
+            $spanishShortDate = ucfirst(iconv('ISO-8859-2', 'UTF-8', strftime("%A, %d de %B", strtotime($publishDate))));
             if($customerId){
                 $customer = Customer::find($customerId);
                 if($customer){
                     $content = str_ireplace("{name}", $customer->first_name, $content);
+                    foreach($blocks as $index => $block){
+                        if(isset($block['content']))$blocks[$index]['content'] = str_ireplace("{name}", $customer->first_name, $block['content']);
+                        if(isset($block['note']))$blocks[$index]['note'] = str_ireplace("{name}", $customer->first_name, $block['note']);
+                    }        
                 }
             }
             $whatsapp = $content;
             $dashboard = self::replaceDashboard($content);
+            foreach($blocks as $index => $block){
+                if(isset($block['content']))$blocks[$index]['content'] = self::replaceDashboard($block['content']);
+                if(isset($block['note']))$blocks[$index]['note'] = self::replaceDashboard($block['note']);
+            }
             $content = self::replace($content,$customerId);
             $whatsapp = self::replaceWhatsapp($whatsapp);
-            return ['date' => $spanishDate, 'content' => $content, 'whatsapp' => $whatsapp,'dashboard'=>$dashboard,'blog'=>$blog];
+            if($content)return ['date' => $spanishDate,'short_date' => $spanishShortDate, 'content' => $content, 'whatsapp' => $whatsapp,'dashboard'=>$dashboard,'blog'=>$blog,'blocks'=>$blocks];
         }    
         return null;
     }

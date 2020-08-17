@@ -178,6 +178,14 @@ class User extends Authenticatable
         }        
     }
     public static function generateAcessToken($user){
+        $tokenResult = $user->createToken('Personal Access Token');
+        $token = $tokenResult->token;
+        $token->expires_at = Carbon::now()->addMinutes(30);
+        $token->save();
+        $user = self::findDetails($user);
+        return array($user,$tokenResult);
+    }
+    public static function findDetails($user){
         $hasWorkoutSubscription = false;
         $hasActiveWorkoutSubscription = false;
         if($user->customer){
@@ -238,12 +246,15 @@ class User extends Authenticatable
             }
             $user['permissions'] = $result;
         }
-        $tokenResult = $user->createToken('Personal Access Token');
-        $token = $tokenResult->token;
-        $token->expires_at = Carbon::now()->addMinutes(30);
-        $token->save();
         $user['has_workout_subscription']=$hasWorkoutSubscription;
         $user['has_active_workout_subscription']=$hasActiveWorkoutSubscription;
+        if($user->customer){
+            $userTimezone = new \DateTimeZone($user->customer->timezone);
+            $objDateTime = new \DateTime('NOW');
+            $objDateTime->setTimezone($userTimezone);
+            $time = $objDateTime->getTimestamp();
+            $user['current_date'] = ucfirst(iconv('ISO-8859-2', 'UTF-8', strftime("%A, %d de %B del %Y", $time)));
+        }
         $defaultCoupon = Coupon::whereCode(Coupon::DEFAULT)->first();
         if($defaultCoupon)$user['defaultCouponId'] = $defaultCoupon->id;
         if($user->customer){
@@ -274,7 +285,7 @@ class User extends Authenticatable
                 }
             }
         }
-        return array($user,$tokenResult);
+        return $user;
     }
     public static function adminEmail(){
         $emails = [];
