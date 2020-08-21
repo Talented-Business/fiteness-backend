@@ -475,16 +475,16 @@ class Customer extends Model
         }else{
             $current = 0;
         }
-        if($current<39){
+        if($current<20){
             $this->current_condition = 1;
-        }else if($current<59){
+        }else if($current<40){
             $this->current_condition = 2;
-        }else if($current<79){
+        }else if($current<60){
             $this->current_condition = 3;
-        }else if($current<39){
+        }else if($current<80){
             $this->current_condition = 4;
         }else{
-            $this->current_condition = 4;
+            $this->current_condition = 5;
         }
         $this->save();
     }

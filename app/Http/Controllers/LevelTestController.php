@@ -15,7 +15,7 @@ class LevelTestController extends Controller
         }
         $user = $request->user('api');
         if($user){
-            $levelTest = LevelTest::firstOrNew(['customer_id' => $user->customer->id,'recording_date'=>date("Y-m-d")]);
+            $levelTest = new LevelTest;//::firstOrNew(['customer_id' => $user->customer->id,'recording_date'=>date("Y-m-d")]);
             $levelTest->repetition = $request->repetition;
             $levelTest->recording_date = date("Y-m-d");
             $levelTest->customer_id = $user->customer->id;

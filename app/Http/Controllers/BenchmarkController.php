@@ -102,9 +102,9 @@ class BenchmarkController extends Controller
         }
     }
     public function published(Request $request){
-        $result = Benchmark::where('status','=','Publish')->where('post_date','<',date("Y-m-d H:i:s"))->get();
         $user = $request->user('api');
         $customer_id = $user->customer->id;
+        $result = Benchmark::where('status','=','Publish')->where('post_date','>',$user->customer->created_at)->get();
         foreach($result as $index=>$item){
             if($item->image)  $item->image = url('storage/'.$item->image);
             $benchmarkResult = BenchmarkResult::where('customer_id','=',$customer_id)->where('benchmark_id','=',$item->id)->orderBy('recording_date', 'DESC')->first();

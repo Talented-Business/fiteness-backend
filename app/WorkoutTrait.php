@@ -186,7 +186,7 @@ trait WorkoutTrait
                 $blog = true;
                 if($record->blog){
                     $content = $record->blog;
-                    $blocks = [['content'=>$record->blog]];    
+                    $blocks = [['content'=>$record->blog,'timer_type'=>$record->blog_timer_type,'timer_work'=>$record->blog_timer_work,'timer_rest'=>$record->blog_timer_rest,'timer_round'=>$record->blog_timer_round]];
                 }else{
                     $content = null;
                     $blocks = [];

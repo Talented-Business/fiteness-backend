@@ -24,7 +24,7 @@ class StaticWorkout extends Model
         for($i=0;$i<7;$i++){
             $contents[$i] = [0=>null,1=>null,2=>null,3=>null,4=>null,5=>null,6=>null];
             for($j=0;$j<7;$j++){
-                $contents[$i][$j] = ["comentario"=>"","image_path"=>"","blog"=>""];
+                $contents[$i][$j] = ["comentario"=>"","image_path"=>"","blog"=>"","blog_timer_type"=>"","blog_timer_work"=>"","blog_timer_round"=>"","blog_timer_rest"=>""];
                 $columns = ["calentamiento","con_content","sin_content","extra_sin","strong_male","strong_female","fit","cardio","activo"];
                 foreach($columns as $column){
                     $contents[$i][$j][$column] = "";
@@ -117,10 +117,8 @@ class StaticWorkout extends Model
         switch($column){
             case "comentario":
             break;
-            case "blog":
-            break;
             default:
-            $workout->{$column.'_note'} = $request->input('note');
+            if($request->exists($column.'_note'))$workout->{$column.'_note'} = $request->input('note');
             $workout->{$column.'_timer_type'} = $request->input('timer_type');
             $workout->{$column.'_timer_work'} = $request->input('timer_work');
             if($request->exists('timer_round'))$workout->{$column.'_timer_round'} = $request->input('timer_round');

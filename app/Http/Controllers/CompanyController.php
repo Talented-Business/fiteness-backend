@@ -195,7 +195,7 @@ class CompanyController extends Controller
                 if($results->total()>0){
                     foreach($results as $index=>$item){
                         $logo= $results[$index]['thumbnail'];
-                        $results[$index]['media_url'] = $productImage->getImageSize($logo,$size);
+                        $results[$index]['media_url'] = $productImage->getImageSize($logo,"medium");
                     }            
                     return response()->json(['company'=>$company,'products'=>$results]);
                 }

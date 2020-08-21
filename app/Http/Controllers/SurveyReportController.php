@@ -5,8 +5,16 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\SurveyReport;
 use App\SurveySelect;
-
+use App\SurveyItem;
+use App\Survey;
+use App\Customer;
 class SurveyReportController extends Controller{
+    public function index(Request $request){
+        $surveyReports = new SurveyReport;
+        $surveyReports->assignSearch($request);
+        $indexData = $surveyReports->search($request);
+        return response()->json(array('status'=>'ok','data'=>$indexData));
+    }
     public function store(Request $request){
         $user = $request->user('api');
         if($request->exists("items")){
@@ -15,6 +23,7 @@ class SurveyReportController extends Controller{
                 $report = SurveyReport::firstOrNew(['survey_item_id'=>$item['id'],'customer_id'=>$customerId]);
                 $report->survey_item_id = $item['id'];
                 $report->customer_id = $customerId;
+                $report->question = $item['question'];
                 switch($item['question']){
                     case "text":
                         $report->text_answer = $item['report'];
@@ -40,5 +49,10 @@ class SurveyReportController extends Controller{
         }else{
             return response()->json(array('status'=>'failed'),422);
         }
+    }
+    public function view(Request $request){
+        $surveyReports = new SurveyReport;
+        $viewData = $surveyReports->viewDetail($request);
+        return response()->json(array('status'=>'ok','data'=>$viewData));
     }
 }

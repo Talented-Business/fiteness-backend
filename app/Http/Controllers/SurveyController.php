@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Survey;
 use App\SurveyItem;
+use App\SurveySelect;
 use Illuminate\Support\Facades\Validator;
 
 class SurveyController extends Controller
@@ -38,12 +39,14 @@ class SurveyController extends Controller
     public function show($id,Request $request){
         $survey = Survey::find($id);        
         $items = $survey->items;
+        $surveyItemSelect = new SurveySelect;
+        $options = $surveyItemSelect->all();
         $fromDate = explode(' ',$survey->from_date);
         $toDate = explode(' ',$survey->to_date);
         $survey['from_date'] = $fromDate[0];
         $survey['to_date'] = $toDate[0];
 
-        return response()->json(array('survey'=>$survey,'items'=>$items,'status'=>"ok"));
+        return response()->json(array('survey'=>$survey,'items'=>$items,'status'=>"ok",'options'=>$options));
     }
     public function update($id,Request $request){
         $survey = Survey::find($id);

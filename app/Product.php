@@ -4,6 +4,8 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\DB;
+
 class Product extends Model
 {
     protected $fillable = ['name','company_id','price_type','discount','regular_price','price','description','voucher_type','expiration_date','status','codigo','link'];    
@@ -34,8 +36,8 @@ class Product extends Model
                 $query->orWhere('description','like','%'.$this->search.'%');
             }
         });
-        if($this->status)$where->whereStatus($this->status);
-        if($this->expiration_date)$where->where("expiration_date",">=",$this->expiration_date);
+        //if($this->status)$where->whereStatus($this->status);
+        //if($this->expiration_date)$where->where("expiration_date",">=",$this->expiration_date);
         $currentPage = $this->pageNumber+1;
         Paginator::currentPageResolver(function () use ($currentPage) {
             return $currentPage;
@@ -64,5 +66,27 @@ class Product extends Model
             }
         }
     }
-    
+    public function getRelatedItems($customer){
+        $products= DB::table("products")
+            ->rightJoin('companies', function ($join) {
+                $join->on('companies.id', '=', 'products.company_id')
+                ->leftJoin('company_countries', function ($join) {
+                    $join->on('companies.id', '=', 'company_countries.company_id');
+                })
+                ->where("companies.is_all_countries", "=", "yes")
+                ->orWhere(function($query) {
+                    $query->where("companies.is_all_countries", "=", "no")
+                          ->where('company_countries.country', '=', strtoupper($this->countryCode));
+                });
+            })
+            ->rightJoin('product_gallery', function ($join) {
+                $join->on('products.id', '=', 'product_gallery.product_id');
+            })
+            ->select("products.*", "product_gallery.image")
+            ->where('products.status', '=', "Active")
+            ->where('products.expiration_date', '>=', $customer->currentDate())
+            ->groupBy("products.id")
+            ->inRandomOrder()->limit(6)->get();
+        return $products;
+    }
 }

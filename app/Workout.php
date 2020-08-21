@@ -92,7 +92,7 @@ class Workout extends Model
                 date('Y-m-d', strtotime('sunday this week', strtotime($date))),
             ];
         }
-        $columns  = ['comentario','image_path','blog'];
+        $columns  = ['comentario','image_path','blog','blog_timer_type','blog_timer_work','blog_timer_round','blog_timer_rest'];
         $primaryColumns = ['calentamiento','con_content', 'sin_content', 'strong_male', 'strong_female', 'fit', 'cardio','extra_sin', 'activo'];
         foreach($primaryColumns as $column){
             $columns[] = $column;
@@ -152,10 +152,8 @@ class Workout extends Model
         switch($column){
             case "comentario":
             break;
-            case "blog":
-            break;
             default:
-            $workout->{$column.'_note'} = $request->input('note');
+            if($request->exists($column.'_note'))$workout->{$column.'_note'} = $request->input('note');
             $workout->{$column.'_timer_type'} = $request->input('timer_type');
             $workout->{$column.'_timer_work'} = $request->input('timer_work');
             if($request->exists('timer_round'))$workout->{$column.'_timer_round'} = $request->input('timer_round');

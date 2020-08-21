@@ -189,15 +189,17 @@ class ProductController extends Controller
         $user = $request->user('api');
         if($product && $product->status=="Active" && $user->customer->currentDate()<=$product->expiration_date){
             $productImage = new ProductImage;
-            $size = "medium";
             $product->company;
             foreach ($product->gallery as $index=>$item){
                 $product->gallery[$index]['thumbnail']=$productImage->getImageSize($item->image,"x-small");
-                $product->gallery[$index]['image']=$productImage->getImageSize($item->image,$size);
+                $product->gallery[$index]['image']=url('storage/'.$item->image);
+                $product->gallery[$index]['media_url']=$productImage->getImageSize($item->image,"large");
             }
-            $products = Product::whereStatus("Active")->where("expiration_date",">=",$user->customer->currentDate())->where('id','!=',$id)->inRandomOrder()->limit(6)->get();
+            //$products = Product::whereStatus("Active")->where("expiration_date",">=",$user->customer->currentDate())->where('id','!=',$id)->inRandomOrder()->limit(6)->get();
+            $products = $product->getRelatedItems($user->customer);
+            $size = "medium";
             foreach($products as $index=>$item){
-                if(isset($item->gallery[0]))$products[$index]['media_url'] = $productImage->getImageSize($item->gallery[0]->image,$size);
+                if(isset($item->image))$products[$index]->media_url = $productImage->getImageSize($item->image,$size);
             }
             return response()->json(array('status'=>'ok','product'=>$product,'products'=>$products));    
         }else{

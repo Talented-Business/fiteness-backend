@@ -17,7 +17,6 @@ class SurveyItem extends Model
     public static function validateRules($id=null){
         return array(
             'suryey_id'=>'numeric',
-            'question'=>'required',
             'label'=>'required',
         );
     }
