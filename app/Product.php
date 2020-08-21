@@ -84,6 +84,7 @@ class Product extends Model
             })
             ->select("products.*", "product_gallery.image")
             ->where('products.status', '=', "Active")
+            ->where('products.id', '!=', $this->id)
             ->where('products.expiration_date', '>=', $customer->currentDate())
             ->groupBy("products.id")
             ->inRandomOrder()->limit(6)->get();

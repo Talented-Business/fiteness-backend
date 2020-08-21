@@ -21,20 +21,43 @@ class ProductImage extends Model
         for($i = 0; $i < count($sizes); $i++) {
             $size = $sizes[$i];
             $resizeImg = Image::make('storage/' . $photoPath.'/'.$fileNameUpdate);
-            $height = $resizeImg->height();
-            $width = $resizeImg->width();
-            if($width > $height) {
-                $cropStartPointX = round(($width - $height) / 2);
-                $cropStartPointY = 0;
-                $cropWidth = $height;
-                $cropHeight = $height;
+            if($size[0]==$size[1]){
+                $height = $resizeImg->height();
+                $width = $resizeImg->width();
+                if($width > $height) {
+                    $cropStartPointX = round(($width - $height) / 2);
+                    $cropStartPointY = 0;
+                    $cropWidth = $height;
+                    $cropHeight = $height;
+                }
+                else {
+                    $cropStartPointX = 0;
+                    $cropStartPointY = round(($height - $width) / 2);
+                    $cropWidth = $width;
+                    $cropHeight = $width;
+                }
             }
-            else {
-                $cropStartPointX = 0;
-                $cropStartPointY = round(($height - $width) / 2);
-                $cropWidth = $width;
-                $cropHeight = $width;
+            else{
+                if($size[0] > $size[1]){
+                    $height = $resizeImg->height();
+                    $width = $resizeImg->width();
+                    if($width > $height) {
+                        $sizeRate = $size[0]/$size[1];
+                        $cropStartPointX = round(($width - ($height*$sizeRate)) / 2);
+                        $cropStartPointY = 0;
+                        $cropWidth = round($height*$sizeRate);
+                        $cropHeight = $height;
+                    }
+                    else {
+                        $sizeRate = $size[1]/$size[0];
+                        $cropStartPointX = 0;
+                        $cropStartPointY = round(($height - ($width*$sizeRate)) / 2);
+                        $cropWidth = $width;
+                        $cropHeight = round($width*$sizeRate);
+                    }
+                }
             }
+            
             $resizeImg->crop($cropWidth, $cropHeight, $cropStartPointX, $cropStartPointY)
             ->resize($size[0], $size[1], function($constraint) {
                 $constraint->aspectRatio();
