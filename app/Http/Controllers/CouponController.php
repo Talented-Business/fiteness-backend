@@ -57,7 +57,7 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
-    public function destroy($id){
+    public function destroy($id,Request $request){
         $user = $request->user('api');
         if($user->can('coupons')){
             $coupon = Coupon::find($id);

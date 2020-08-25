@@ -607,7 +607,7 @@ class PaymentSubscription extends Model
         }
         $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
         $nextPaymentDate = date('d/m/Y',strtotime($paymentSubscription->getEndDate($transaction)));
-        $nextPaymentTotal = $paymentSubscription->nextPaymentAmount();
+        $nextPaymentTotal = $paymentSubscription->nextPaymentAmount($coupon);
         Mail::to($customer->email)->send(new RenewalPaymentNotification($customer->first_name,$frequencyString,$frequency,$amount,$transaction->total,$coupon,date('d/m/Y',strtotime($transaction->done_date)),$nextPaymentDate,$nextPaymentTotal));
     }
     public function sendFirstFreeMail($subscription){

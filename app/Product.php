@@ -36,8 +36,8 @@ class Product extends Model
                 $query->orWhere('description','like','%'.$this->search.'%');
             }
         });
-        //if($this->status)$where->whereStatus($this->status);
-        //if($this->expiration_date)$where->where("expiration_date",">=",$this->expiration_date);
+        if($this->status)$where->whereStatus($this->status);
+        if($this->expiration_date)$where->where("expiration_date",">=",$this->expiration_date);
         $currentPage = $this->pageNumber+1;
         Paginator::currentPageResolver(function () use ($currentPage) {
             return $currentPage;

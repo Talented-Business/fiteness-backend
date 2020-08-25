@@ -112,6 +112,7 @@ class ProductController extends Controller
         foreach ($productImage as $index=>$item){
             $productImage[$index]['image']=url("storage/".$item->image);
         }
+        $product['companyMatchId'] = $product->company_id;
         return response()->json(array('status'=>'ok','product'=>$product,'productImage'=>$productImage ));    
     }
     public function update($id,Request $request)
@@ -213,7 +214,19 @@ class ProductController extends Controller
             $productImage = new ProductImage;
             $size = "small";
             $product->company->logo = $productImage->getImageSize($product->company->logo,$size);
-            $voucherDate = date("Y-m-d",strtotime($user->customer->currentDate())+3600*24*7);
+            $strlenCompany = strlen($product->company->description);
+            $stringCompany = $product->company->description;
+            if($strlenCompany>380){
+                $textCompany=substr($stringCompany,0,($strlenCompany-380));
+                $product->company->description = $textCompany.'....';
+            }
+            $strlenProduct = strlen($product->description);
+            $stringProduct = $product->description;
+            if($strlenProduct>290){
+                $textProduct=substr($stringProduct,0,($strlenProduct-290));
+                $product->description = $textProduct.'....';
+            }
+            $voucherDate = date("d/m/Y",strtotime($user->customer->currentDate())+3600*24*7);
             $data = [
                 'company'=>$product->company,
                 'product'=>$product,

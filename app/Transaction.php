@@ -85,7 +85,7 @@ class Transaction extends Model
         $transaction->content = 'nmi';
         $transaction->coupon_id = $subscription->coupon_id;
         $transaction->payment_subscription_id = $paymentSubscription->subscription_id;
-        $total = $paymentSubscription->nextPaymentAmount();
+        $total = $paymentSubscription->nextPaymentAmount($subscription->coupon);
         $transaction->total = $total;
         $transaction->done_date = date('Y-m-d H:i:s');
         $transaction->frequency = $subscription->convertFrequencyString($paymentSubscription->getFrequency());

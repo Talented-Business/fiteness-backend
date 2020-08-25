@@ -6,7 +6,12 @@
 /* Mobile-specific Styles */
 
 /*# sourceMappingURL=sunny.css.map */
-
+            p {
+                margin:0px;
+            }
+            .product-description {
+                width: 500px;
+            }
         </style>
 	</head>
 	<body>
@@ -15,43 +20,49 @@
             <div style="display:inline-block;width:150px;vertical-align:top;">
                 <img src="{{$company['logo']}}"/>
             </div>
-            <div style="display:inline-block; margin-left:20px;margin-top:30px;width:400px;">
+            <div style="display:inline-block; margin-left:20px;width:400px;">
                 <h3>{{$company->name}}</h3>
-                <div>
-                    {{$company->description}}
+                <div class="product-description">
+                    <p>{{$company->description}}</P>
                 </div>
             </div>
         </div>
-        <p>Teléfono: {{$company->phone}} 
+        <p style="margin-top:20px">Teléfono: {{$company->phone}} 
             @if($company->mobile_phone)
             / {{$company->mobile_phone}}
             @endif</p>
-        <p>Email: {{$company->mail}}</p>
+        <!-- <p>Email: {{$company->mail}}</p> -->
+        <p><span>Email:</span> <a href="mailto:{{$company->mail}}"><b>{{$company->mail}}</a></p>
         @if($company->website_url)
-            <p>Sitio web: {{$company->website_url}}</p>
+            <p><span>Sitio web:</span> <a target="_blank" href={{$company->website_url}}><b>{{$company->website_url}}</b></a></p>
         @endif
         @if($company->facebook)
-            <p>Facebook: {{$company->facebook}}</p>
+            <p><span>Facebook:</span> <a target="_blank" href={{$company->facebook}} ><b>{{$company->facebook}}</b></a></p>
         @endif
         @if($company->instagram)
-            <p>Instagram: {{$company->instagram}}</p>
+            <p><span>Instagram:</span> <a target="_blank" href={{$company->instagram}} ><b>{{$company->instagram}}<b></a></p>
         @endif
         @if($company->twitter)
-            <p>Twitter: {{$company->twitter}}</p>
+            <p><span>Twitter:</span> <a target="_blank" href={{$company->twitter}} ><b>{{$company->twitter}}<b></a></p>
         @endif
         @if($company->horario)
-            <p>Horario: {{$company->horario}}</p>
+            <span>Horario:</span> {{$company->horario}}
+        @endif
+        @if($company->address)
+            <p style="margin-bottom:20px">dirección: {{$company->address}}</p>
         @endif
         <hr />
-        <div>
+        <div style="margin-top:30px">
             <div style="display:inline-block;width:250px;vertical-align:top;">
                 <img src="{{$image}}"/>
             </div>
-            <div style="display:inline-block; margin-left:20px;margin-top:10px;width:300px;">
+            <div style="display:inline-block; margin-left:20px;width:400px; margin-top:15px">
                 <h3>{{$product->name}}</h3>
                 <div>
                     {{$product->description}}
                 </div>
+                <br>
+                <br>
                 <p>Oferta: 
                 @if($product->price_type == "offer")
                     <span style="text-decoration: line-through">${{$product->regular_price}}</span><span>${{$product->price}}</span>
@@ -63,7 +74,7 @@
                     <p>Código Ecommerce: {{$product->codigo}}</p>
                 @endif
                 @if($product->link)
-                    <p>Link Ecommerce: {{$product->link}}</p>
+                    <p><span>Link Ecommerce:</span> <a target="_blank" href={{$product->link}} ><b>{{$product->link}}<b></a></p>
                 @endif                
                 Válido hasta: {{$voucherDate}}
 
