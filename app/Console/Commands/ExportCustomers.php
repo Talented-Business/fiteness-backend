@@ -47,6 +47,6 @@ class ExportCustomers extends Command
         $file = \Storage::disk('local')->path('customers.xlsx');
         $exists = \Storage::disk('local')->exists('customers.xlsx');
         //send mail
-        Mail::to(env("MAIL_FROM_ADDRESS"))->send(new \App\Mail\CustomerExport());
+        if($exists)Mail::to(env("MAIL_FROM_ADDRESS"))->send(new \App\Mail\CustomerExport());
     }
 }

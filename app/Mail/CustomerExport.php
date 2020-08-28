@@ -30,6 +30,9 @@ class CustomerExport extends Mailable
     {
         $subject = date("Y-m-d").' Customers Export';
         $file = \Storage::disk('local')->path('customers.xlsx');
-        return $this->subject($subject)->view('emails.customers.export')->attach($file);
+        return $this->subject($subject)->view('emails.customers.export')->attach($file, [
+            'as' => 'customers.xlsx',
+            'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 }
