@@ -21,6 +21,7 @@ class LevelTestController extends Controller
             $levelTest->customer_id = $user->customer->id;
             $levelTest->save();
             $user->customer->changeLevel();
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
             return response()->json(['status'=>$levelTest]);                
         }else{
             return response()->json(['status'=>'failed'],422);                
@@ -37,6 +38,7 @@ class LevelTestController extends Controller
         $user = $request->user('api');
         $levelTest->customer_id = $user->customer->id;
         $levelTest->save();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['status'=>$levelTest]);
     }
     public function destroy($id, Request $request)
@@ -65,7 +67,8 @@ class LevelTestController extends Controller
         $levelTest = new LevelTest;
         $levelTest->assignSearch($request);
         $user = $request->user('api');
-        $level = LevelTest::whereCustomerId($user->customer->id)->orderBy('recording_date','desc')->first();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
+        $level = LevelTest::whereCustomerId($user->customer->id)->orderBy('created_at','desc')->first();
         if($level){
             $current = $level->repetition;
         }else{

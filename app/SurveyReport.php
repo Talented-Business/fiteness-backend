@@ -30,12 +30,39 @@ class SurveyReport extends Model
         $this->pageSize = $request->input('pageSize');
         $this->pageNumber = $request->input('pageNumber');
     }
-    public function searchAll(){
-        $where = SurveyItem::whereRaw('1');
-        if($this->survey_id!=null){
-            $where->whereSurveyId($this->survey_id);
+    public function findAnswersExport($surveyId){
+        //print_r($surveyId);die;
+        $customers = DB::table('customers')
+            ->leftJoin('survey_reports','customers.id','=','survey_reports.customer_id')
+            ->leftJoin('survey_items','survey_items.id','=','survey_reports.survey_item_id')
+            ->leftJoin('surveys','surveys.id','=','survey_items.survey_id')
+            ->select('customers.first_name','customers.last_name','customers.id','survey_reports.created_at','surveys.title')
+            ->where('survey_items.survey_id','=',$surveyId)
+            ->groupby( 'customers.id')->get();
+        $itemsArray = [];    
+        $survey = Survey::find($surveyId);
+        $header = [
+            'Customer',
+            'Done Date',
+        ];
+        $surveyItems = [];
+        $doneDate = "";
+        foreach($survey->items as $item){
+            $header[] = $item->label;
+            $surveyItems[] = $item;
+            $doneDate = date('M d, Y',strtotime($item->created_at));
         }
-        return $where->get();
+        $itemsArray[] = $header;
+        foreach($customers as $customer){
+            $answer = [$customer->first_name." ".$customer->last_name,$doneDate];
+            foreach($surveyItems as $item){
+                $report = $this->whereSurveyItemId($item->id)->whereCustomerId($customer->id)->first();
+                if($report)$answer[] = $report->{$item->question."_answer"};
+                else $answer[] = "";
+            }
+            $itemsArray[] = $answer;
+        }
+        return $itemsArray;
     }
     public function search($request){
         $surveyData = $request->input();

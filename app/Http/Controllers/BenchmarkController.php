@@ -104,6 +104,7 @@ class BenchmarkController extends Controller
     public function published(Request $request){
         $user = $request->user('api');
         $customer_id = $user->customer->id;
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         $result = Benchmark::where('status','=','Publish')->where('post_date','>',$user->customer->created_at)->get();
         foreach($result as $index=>$item){
             if($item->image)  $item->image = url('storage/'.$item->image);

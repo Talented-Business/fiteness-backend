@@ -59,6 +59,7 @@ class SurveyController extends Controller
         $survey = null;
         if($user && $user->customer){
             $survey = $user->customer->findCurrentSurvey();
+            \App\Jobs\Activity::dispatch($user->customer);
         }
         return response()->json(array('status'=>'ok','survey'=>$survey));
     }

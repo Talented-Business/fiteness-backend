@@ -19,6 +19,7 @@ use App\Jobs\NotifyNonSubscriber;
 use Mail;
 use App\Mail\VerifyMail;
 use App\Mail\SubscriptionCancelAdmin;
+use App\SurveyReport;
 
 class FindTransactions extends Command
 {
@@ -249,9 +250,23 @@ class FindTransactions extends Command
         if(false){
             $this->currentWorkoutPeriod();
         }
-        if(true){
+        if(false){
             $this->getImageSizes();
         }
+        if(false){
+            $this->surveyExport();
+        }
+        if(true){
+            $this->loginActivity();
+        }
+    }
+    private function loginActivity(){
+        $customer = Customer::find(5);
+        \App\Jobs\Activity::dispatch($customer,'2020-08-31');
+    }
+    private function surveyExport(){
+        $surveyReports = new SurveyReport;
+        $export = $surveyReports->findAnswersExport(1);
     }
     private function getImageSizes(){
         $sizes = Setting::IMAGE_SIZES;

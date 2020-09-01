@@ -8,6 +8,9 @@ use App\SurveySelect;
 use App\SurveyItem;
 use App\Survey;
 use App\Customer;
+use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\CustomersExport;
+
 class SurveyReportController extends Controller{
     public function index(Request $request){
         $surveyReports = new SurveyReport;
@@ -54,5 +57,13 @@ class SurveyReportController extends Controller{
         $surveyReports = new SurveyReport;
         $viewData = $surveyReports->viewDetail($request);
         return response()->json(array('status'=>'ok','data'=>$viewData));
+    }
+    public function export(Request $request){
+        $surveyReports = new SurveyReport;
+        $reports = $surveyReports->findAnswersExport($request->input('survey_id'));
+        $export = new CustomersExport([
+            $reports
+        ]);
+        return Excel::download($export,'survey.xlsx');
     }
 }

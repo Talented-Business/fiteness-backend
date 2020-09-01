@@ -47,7 +47,8 @@ class CustomerController extends Controller
         $customer = Customer::find($id);
         $response = $customer->assign($request);
         if($response === true){
-            $user->customer->increaseRecord('edit_count');
+            $customer->increaseRecord('edit_count');
+            \App\Jobs\Activity::dispatch($customer);
             $customer->save();
             return response()->json(array('status'=>'ok','customer'=>$customer));
         }else{
@@ -121,6 +122,7 @@ class CustomerController extends Controller
         $user = $request->user('api');
         if($user&&$user->customer){
             $weights = $user->customer->latestWeights;
+            \App\Jobs\Activity::dispatch($user->customer);
             if(isset($weights[0])){
                 if($weights[0]->value != $user->customer->current_weight){
                     $user->customer->current_weight = $weights[0]->size;
@@ -143,7 +145,8 @@ class CustomerController extends Controller
         $id = $request->input('id');
         $weight = Weight::find($id);
         $weight->delete();
-        $user->customer->increaseRecord('edit_count');
+        if($user->customer)$user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
     public function updateWeight(Request $request){
@@ -156,7 +159,8 @@ class CustomerController extends Controller
         $weight->value = Weight::convert($weight->size, $unit);
         $weight->created_at=$request->input('date').' 00:00:00';
         $weight->save();
-        $user->customer->increaseRecord('edit_count');
+        if($user->customer)$user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
     public function storeWeight(Request $request){
@@ -170,6 +174,7 @@ class CustomerController extends Controller
         $weight->created_at=$request->input('date').' 00:00:00';
         $weight->save();
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
     public function conditions(){
@@ -187,6 +192,7 @@ class CustomerController extends Controller
             $user->customer->save();
         }
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
     public function previousCondition(Request $request){
@@ -196,6 +202,7 @@ class CustomerController extends Controller
             $user->customer->save();
         }
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
     public function changeCondition(Request $request){
@@ -207,6 +214,7 @@ class CustomerController extends Controller
             $user->customer->save();
         }
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
     public function changeObjective(Request $request){
@@ -215,6 +223,7 @@ class CustomerController extends Controller
         $user->customer->objective = $objective;
         $user->customer->save();
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->objective]);
     }
     public function changeWeights(Request $request){
@@ -222,11 +231,13 @@ class CustomerController extends Controller
         $weights = $request->input('weights');
         $user->customer->weights = $weights;
         $user->customer->save();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['weights'=>$user->customer->weights]);
     }
     public function recentWorkouts(Request $request){
         $user = $request->user('api');
         $workouts = $user->customer->recentWorkouts();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['workouts'=>$workouts,'profile'=>$user->customer->findMedal()]);
     }
     public function export(Request $request)
@@ -245,7 +256,10 @@ class CustomerController extends Controller
     public function activity(Request $request){
         $column = $request->input('column');
         $user = $request->user('api');
-        if($user && $user->customer)$user->customer->increaseRecord($column);
+        if($user && $user->customer){
+            $user->customer->increaseRecord($column);
+            \App\Jobs\Activity::dispatch($user->customer);
+        }
         return response()->json(['status'=>'ok']);
     }
     public function link(Request $request){
@@ -271,6 +285,7 @@ class CustomerController extends Controller
         if($user->customer){
             $user->customer->active_email=!$user->customer->active_email;
             $user->customer->save();
+            \App\Jobs\Activity::dispatch($user->customer);
             return response()->json(['status'=>$user->customer->active_email]);
         }
     }
@@ -279,6 +294,7 @@ class CustomerController extends Controller
         if($user->customer){
             $user->customer->notifiable=!$user->customer->notifiable;
             $user->customer->save();
+            \App\Jobs\Activity::dispatch($user->customer);
             return response()->json(['status'=>$user->customer->notifiable]);
         }
         return response()->json(['status'=>'failed'],403);
@@ -287,6 +303,7 @@ class CustomerController extends Controller
         $user = $request->user('api');
         if($user->customer){
             $referralCoupon = $user->customer->findReferralCoupon();
+            \App\Jobs\Activity::dispatch($user->customer);
             if($referralCoupon == null){
                 $referralCoupon = new Coupon;
                 $referralCoupon->type = "Referral";
@@ -305,6 +322,7 @@ class CustomerController extends Controller
         $user = $request->user('api');
         if($user->customer && $user->customer->hasActiveSubscription()){
             $referralUrl = $user->customer->findReferralUrl();
+            \App\Jobs\Activity::dispatch($user->customer);
             $discount = Setting::getReferralDiscount();
             return response()->json(['referralUrl'=>$referralUrl,'discount'=>$discount]);
         }
@@ -314,6 +332,7 @@ class CustomerController extends Controller
         $user = $request->user('api');
         if($user->customer && $user->customer->hasActiveSubscription()){
             $partners = $user->customer->findPartners();
+            \App\Jobs\Activity::dispatch($user->customer);
             return response()->json(['partners'=>$partners]);
         }
         return response()->json(['status'=>'failed']);
@@ -321,6 +340,7 @@ class CustomerController extends Controller
     public function ccard(Request $request){
         $user = $request->user('api');
         if($user->customer){
+            \App\Jobs\Activity::dispatch($user->customer);
             $paymentToken = PaymentTocken::whereCustomerId($user->customer->id)->first();
             if($paymentToken)return response()->json(['number'=>$paymentToken->last4]);
         }

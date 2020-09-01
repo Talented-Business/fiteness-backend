@@ -56,6 +56,7 @@ class UserController extends Controller
         list($user,$tokenResult) = User::generateAcessToken($user);
         $newToken = $tokenResult->token;
         Session::updateToken($oldToken,$newToken);
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json([
             'authentication'=>[
                 'accessToken' => $tokenResult->accessToken,
@@ -124,6 +125,7 @@ class UserController extends Controller
             $user->save();
             $user->customer->email = $request->input('email');
             $user->customer->save();
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         }
         return response()->json(array('status'=>'ok','user'=>$user));
     }
@@ -177,6 +179,7 @@ class UserController extends Controller
             }
         }
         $user->customer->save();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(array('status'=>'ok','user'=>$user));
     }
     public function deleteImage(Request $request){
@@ -259,6 +262,7 @@ class UserController extends Controller
             }
         }
         $user->customer->save();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(array('status'=>'ok','user'=>$user));
     }
     public function destroy($id){

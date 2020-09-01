@@ -5,6 +5,8 @@ use Intervention\Image\Facades\Image;
 use File;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+
 class ProductImage extends Model
 {
     protected $table='product_gallery';
@@ -12,6 +14,8 @@ class ProductImage extends Model
     public function getImageSize($logo,$size) 
     {
         $image =  implode('-' . Setting::IMAGE_SIZES[$size] . '.', explode('.', $logo));
+        $missing = Storage::disk('local')->missing($image);
+        if($missing) $image = $logo;
         $imagePath = url('storage/'.$image);
         return $imagePath;
     }

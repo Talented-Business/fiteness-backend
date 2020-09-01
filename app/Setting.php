@@ -18,7 +18,7 @@ class Setting
     const IMAGE_SIZES = [            
         'x-small' => '50X50', 
         'small' => '150X150', 
-        'medium' => '250X250', 
+        'medium' => '500X500', 
         'large' => '650X500', 
     ];
     public static function convertSizes(){

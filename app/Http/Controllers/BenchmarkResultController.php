@@ -20,6 +20,7 @@ class BenchmarkResultController extends Controller
         $benchmarkResult->customer_id = $user->customer->id;
         $benchmarkResult->save();
         $user->customer->increaseRecord('benckmark_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->returnBechmarks($user->customer->id, $benchmarkResult->benchmark_id);
     }
     public function update($id, Request $request)
@@ -34,6 +35,7 @@ class BenchmarkResultController extends Controller
         $benchmarkResult->customer_id = $user->customer->id;
         $benchmarkResult->save();
         $user->customer->increaseRecord('benckmark_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->returnBechmarks($user->customer->id, $benchmarkResult->benchmark_id);
     }
     public function destroy($id, Request $request)
@@ -49,6 +51,7 @@ class BenchmarkResultController extends Controller
             ];
             $user = $request->user('api');
             $user->customer->increaseRecord('benckmark_count');
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
             return $this->returnBechmarks($user->customer->id, $benchmarkResult->benchmark_id);
         } else {
             $data = [
@@ -85,6 +88,7 @@ class BenchmarkResultController extends Controller
     {
         $user = $request->user('api');
         $customerId = $user->customer->id;
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->returnBechmarks($customerId, $id);
     }
     private function getInterval($startDate)
@@ -113,6 +117,7 @@ class BenchmarkResultController extends Controller
     {
         $user = $request->user('api');
         $customerId = $user->customer->id;
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         $result = BenchmarkResult::where('customer_id', '=', $customerId)->orderBy('recording_date', 'asc')->get();
         if (isset($result[0])) {
             $registerDate = date("Y-m-d", strtotime($user->customer->created_at));

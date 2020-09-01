@@ -102,6 +102,8 @@ class EventController extends Controller
     public function home(Request $request){
         $event = new Event;
         $event->assignFrontSearch($request);
+        $user = $request->user('api');
+        if($user&&$user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json($event->search());
     }
     public function disable($id,Request $request)

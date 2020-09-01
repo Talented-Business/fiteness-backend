@@ -35,12 +35,12 @@ class Invoice extends Model
         }
         $index = true;
         if($this->from != null){
-            $where->Where('created_at','>=',$this->from.' 00:00:00');
+            $where->where('created_at','>=',$this->from.' 00:00:00');
             $index = false;
         }
         if($this->to != null){
             if($index)$where->orWhere('created_at','<=',$this->to.' 23:59:59');
-            else $where->Where('created_at','<=',$this->to.' 23:59:59');
+            else $where->where('created_at','<=',$this->to.' 23:59:59');
             $index = false;
         }
         $currentPage = $this->pageNumber+1;

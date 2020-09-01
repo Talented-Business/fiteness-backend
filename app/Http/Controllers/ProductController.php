@@ -188,6 +188,7 @@ class ProductController extends Controller
     public function showFront($id,Request $request){
         $product = Product::find($id);
         $user = $request->user('api');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         if($product && $product->status=="Active" && $user->customer->currentDate()<=$product->expiration_date){
             $productImage = new ProductImage;
             $product->company;
@@ -210,6 +211,7 @@ class ProductController extends Controller
     public function download($id,Request $request){
         $product = Product::find($id);
         $user = $request->user('api');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         if($product && $product->status=="Active" && $user->customer->currentDate()<=$product->expiration_date){
             $productImage = new ProductImage;
             $size = "small";
@@ -228,6 +230,7 @@ class ProductController extends Controller
             }
             $voucherDate = date("d/m/Y",strtotime($user->customer->currentDate())+3600*24*7);
             $data = [
+                'customer'=>$user->customer,
                 'company'=>$product->company,
                 'product'=>$product,
                 'image'=>$productImage->getImageSize($product->gallery[0]->image,'medium'),

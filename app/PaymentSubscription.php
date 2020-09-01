@@ -481,7 +481,7 @@ class PaymentSubscription extends Model
             $subscription->payment_plan_id = $this->plan_id;
             $subscription->gateway = $provider;
             $subscription->plan_id = $planId;
-            $subscription->start_date = $this->start_date;
+            if($subscription->start_date==null)$subscription->start_date = $this->start_date;
             $intervalUnit = strtolower(env('INTERVAL_UNIT'));
             $subscription->end_date = null; //date("Y-m-d H:i:s",strtotime("+$frequency $intervalUnit",strtotime($this->start_date)));
             if ($couponId) {
@@ -628,8 +628,8 @@ class PaymentSubscription extends Model
         $nextPaymentTotal = $this->nextPaymentAmount($coupon);
         if( $customer->user )SendEmail::dispatch($customer,new VerifyMail($customer->user));
         NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
-        //$data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer'];
-        //Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
+        $data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer for free trial'];
+        Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
         $customer->sendFirstWorkout();
     }
     public function sendFirstMail($transaction, $sendableFirstWorkout=true){
@@ -650,7 +650,7 @@ class PaymentSubscription extends Model
         if($customer->user && $sendableFirstWorkout)SendEmail::dispatch($customer,new VerifyMail($customer->user));
         SendEmail::dispatch($customer,new FirstPaymentNotification($customer->first_name,$frequencyString,$frequency,$amount,$transaction->total,$coupon,date('d/m/Y',strtotime($transaction->done_date)),$nextPaymentDate,$nextPaymentTotal));
         if($sendableFirstWorkout)NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
-        $data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer'];
+        $data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer for paid'];
         Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
         if($sendableFirstWorkout)$customer->sendFirstWorkout();
     }

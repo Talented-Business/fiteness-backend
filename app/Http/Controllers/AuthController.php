@@ -113,6 +113,7 @@ class AuthController extends Controller
         }
         list($user,$tokenResult) = User::generateAcessToken($user);
         Session::sessionStartWithUser($user,$tokenResult->token->id);
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json([
             'authentication'=>[
                 'accessToken' => $tokenResult->accessToken,
@@ -185,6 +186,7 @@ class AuthController extends Controller
             }
             list($user,$tokenResult) = User::generateAcessToken($user);
             Session::sessionStartWithUser($user,$tokenResult->token->id);
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
             return response()->json([
                 'authentication'=>[
                     'accessToken' => $tokenResult->accessToken,
@@ -294,6 +296,7 @@ class AuthController extends Controller
             }
             list($user,$tokenResult) = User::generateAcessToken($user);
             Session::sessionStartWithUser($user,$tokenResult->token->id);
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
             return response()->json([
                 'authentication'=>[
                     'accessToken' => $tokenResult->accessToken,

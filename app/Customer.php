@@ -874,7 +874,8 @@ class Customer extends Model
         'IMC inicial','IMC actual','Diferencia IMC','Workouts Ingrsados','Objetivo',
         'Edad','País',// country
         'Click on videos','Click on email links','Click on Blogs',
-        'Tiempo activo en website','Actualizaciones totales dentro del perfil','contact request','¿Cómo nos conociste?'
+        'Tiempo activo en website','Actualizaciones totales dentro del perfil','contact request',
+        '¿Cómo nos conociste?'
         ];
         $total = 0;
         foreach($customers as $index=>$customer){

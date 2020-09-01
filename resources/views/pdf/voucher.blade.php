@@ -15,69 +15,146 @@
         </style>
 	</head>
 	<body>
-        <h2>Información de la Compañía</h2>
+        <div style="width:150px;vertical-align:top;opacity:0.5">
+            <img src="{{asset('media/logos/Fitmose-logo.png')}}" alt="Fitemos" width="150"/>
+        </div>
         <div>
-            <div style="display:inline-block;width:150px;vertical-align:top;">
-                <img src="{{$company['logo']}}"/>
+            <h2>Miembro</h2>
+            <div style="margin:0 9px;padding:0 9px;">
+                <div style="display:inline-block;width:50%">
+                    <span>Nombre:</span>
+                    <span>{{$customer->first_name}} {{$customer->last_name}}</span>
+                </div>
+                <div style="display:inline-block;width:50%">
+                    <span>Teléfono:</span>
+                    <span>{{$customer->whatsapp_phone_number}}</span>
+                </div>
             </div>
-            <div style="display:inline-block; margin-left:20px;width:400px;">
-                <h3>{{$company->name}}</h3>
-                <div class="product-description">
-                    <p>{{$company->description}}</P>
+            <div style="margin:0 9px;padding:0 9px;">
+                <div style="display:inline-block;width:50%">
+                    <span>Correo:</span>
+                    <span>{{$customer->email}}</span>
+                </div>
+                <div style="display:inline-block;width:50%">
+                    <span>Membresía: </span>
+                    <span style="color:green">Activa</span>
                 </div>
             </div>
         </div>
-        <p style="margin-top:20px">Teléfono: {{$company->phone}} 
-            @if($company->mobile_phone)
-            / {{$company->mobile_phone}}
-            @endif</p>
-        <!-- <p>Email: {{$company->mail}}</p> -->
-        <p><span>Email:</span> <a href="mailto:{{$company->mail}}"><b>{{$company->mail}}</a></p>
-        @if($company->website_url)
-            <p><span>Sitio web:</span> <a target="_blank" href={{$company->website_url}}><b>{{$company->website_url}}</b></a></p>
-        @endif
-        @if($company->facebook)
-            <p><span>Facebook:</span> <a target="_blank" href={{$company->facebook}} ><b>{{$company->facebook}}</b></a></p>
-        @endif
-        @if($company->instagram)
-            <p><span>Instagram:</span> <a target="_blank" href={{$company->instagram}} ><b>{{$company->instagram}}<b></a></p>
-        @endif
-        @if($company->twitter)
-            <p><span>Twitter:</span> <a target="_blank" href={{$company->twitter}} ><b>{{$company->twitter}}<b></a></p>
-        @endif
-        @if($company->horario)
-            <span>Horario:</span> {{$company->horario}}
-        @endif
-        @if($company->address)
-            <p style="margin-bottom:20px">dirección: {{$company->address}}</p>
-        @endif
         <hr />
-        <div style="margin-top:30px">
-            <div style="display:inline-block;width:250px;vertical-align:top;">
-                <img src="{{$image}}"/>
-            </div>
-            <div style="display:inline-block; margin-left:20px;width:400px; margin-top:15px">
-                <h3>{{$product->name}}</h3>
-                <div>
-                    {{$product->description}}
+        <div style="margin-top:-10px">
+            <h2>Comercio</h2>
+            <div>
+                <div style="display:inline-block;width:150px;vertical-align:top;">
+                    <img src="{{$company['logo']}}" width="150"/>
                 </div>
-                <br>
-                <br>
-                <p>Oferta: 
-                @if($product->price_type == "offer")
-                    <span style="text-decoration: line-through">${{$product->regular_price}}</span><span>${{$product->price}}</span>
-                @else
-                    {{$product->discount}}
-                @endif
-                </p>
-                @if($product->codigo)
-                    <p>Código Ecommerce: {{$product->codigo}}</p>
-                @endif
-                @if($product->link)
-                    <p><span>Link Ecommerce:</span> <a target="_blank" href={{$product->link}} ><b>{{$product->link}}<b></a></p>
-                @endif                
-                Válido hasta: {{$voucherDate}}
-
+                <div style="display:inline-block; margin-left:20px;width:400px;">
+                    <h3>{{$company->name}}</h3>
+                    <div class="product-description">
+                        <p>{{$company->description}}</P>
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top:20px">&nbsp;</div>
+            <div style="margin:0 9px;padding:0 9px;">
+                <div style="display:inline-block;width:50%">
+                Teléfono: {{$company->phone}} 
+                    @if($company->mobile_phone)
+                    / {{$company->mobile_phone}}
+                    @endif
+                </div>
+                <!-- <p>Email: {{$company->mail}}</p> -->
+                <div style="display:inline-block;width:50%">
+                    <span>Website:</span> 
+                    @if($company->website_url)
+                        <a target="_blank" href={{$company->website_url}}><b>{{$company->website_url}}</b></a>
+                    @endif
+                </div>
+            </div>    
+            <div style="margin:0 9px;padding:0 9px;">
+                <div style="display:inline-block;width:50%">
+                    <span>Correo:</span> <a href="mailto:{{$company->mail}}"><b>{{$company->mail}}</a>
+                </div>    
+            
+                <div style="display:inline-block;width:50%">
+                    <span>Facebook:</span> 
+                    @if($company->facebook)
+                        <a target="_blank" href={{$company->facebook}} ><b>{{$company->facebook}}</b></a>
+                    @endif    
+                </div>
+            </div>    
+            <div style="margin:0 9px;padding:0 9px;">
+                <div style="display:inline-block;width:50%">
+                    <span>Horario:</span>             
+                    @if($company->horario)
+                        {{$company->horario}}
+                    @endif    
+                </div>
+                <div style="display:inline-block;width:50%">
+                    <span>Instagram:</span>
+                    @if($company->instagram)
+                     <a target="_blank" href={{$company->instagram}} ><b>{{$company->instagram}}<b></a>
+                    @endif
+                </div>    
+            </div>
+            <div style="margin:0 9px;padding:0 9px;">    
+                <div style="display:inline-block;width:50%">
+                    dirección: 
+                    @if($company->address)
+                        {{$company->address}}
+                    @endif
+                </div>        
+                <div style="display:inline-block;width:50%">
+                    <span>Twitter:</span> 
+                    @if($company->twitter)
+                        <a target="_blank" href={{$company->twitter}} ><b>{{$company->twitter}}<b></a>
+                    @endif    
+                </div>    
+            </div>
+            <div style="margin-bottom:0px">&nbsp;</div>
+        </div>
+        <hr />
+        <div style="margin-top:-10px">
+            <h2>Producto</h2>
+            <div>
+                <div style="display:inline-block;width:150px;vertical-align:top;">
+                    <img src="{{$image}}" width="150"/>
+                </div>
+                <div style="display:inline-block; margin-left:20px;width:400px;">
+                    <h3>{{$product->name}}</h3>
+                    <div class="product-description">
+                        {{$product->description}}
+                    </div>
+                </div>
+            </div>
+            <br>
+            <div style="margin:0 9px;padding:0 9px;">    
+                <div style="display:inline-block;width:50%">
+                    Oferta: 
+                    @if($product->price_type == "offer")
+                        <span style="text-decoration: line-through">${{$product->regular_price}}</span><span>${{$product->price}}</span>
+                    @else
+                        {{$product->discount}}
+                    @endif
+                </div>
+            
+                <div style="display:inline-block;width:50%">
+                    Código E-commerce: 
+                    @if($product->codigo)
+                        {{$product->codigo}}
+                    @endif
+                </div>
+            </div>
+            <div style="margin:0 9px;padding:0 9px;">    
+                <div style="display:inline-block;width:50%">     
+                    Válido: {{$voucherDate}}
+                </div>
+                <div style="display:inline-block;width:50%">
+                    <span>E-commerce Link:</span> 
+                    @if($product->link)
+                        <a target="_blank" href={{$product->link}} ><b>{{$product->link}}<b></a>
+                    @endif          
+                </div>
             </div>
         </div>
         <h3>Observaciones</h3>

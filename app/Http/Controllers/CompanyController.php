@@ -176,6 +176,7 @@ class CompanyController extends Controller
     public function view($id,Request $request){
         $company = Company::find($id);
         $user = $request->user('api');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         if($user->customer && $company->status == "Active"){
             $matchCountry = true;
             $size = 'medium';
@@ -206,6 +207,8 @@ class CompanyController extends Controller
     public function home(Request $request){
         $company = new Company;
         $company->assignFrontSearch($request);
+        $user = $request->user('api');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json($company->frontSearch());        
     }
 }
