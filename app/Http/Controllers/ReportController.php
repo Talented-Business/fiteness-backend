@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Validator;
 use App\Customer;
 use App\Transaction;
 use App\Exports\CustomersExport;
+use App\Activity;
+use App\ActivityWorkout;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
@@ -61,7 +63,35 @@ class ReportController extends Controller
         $reports['users_registers'] = array_values($reports['users_registers']);
         $reports['clients_registers'] = array_values($reports['clients_registers']);
         $reports['clients_users'] = array_values($reports['clients_users']);
+        $reports['usage'] = $this->getUsage($fromDate,$toDate, $reports['labels']);
         return response()->json($reports);
+    }
+    private function getUsage($fromDate,$toDate, $labels){
+        $nextDate = $fromDate;
+        $reports = ['activity'=>[],'start'=>[],'complete'=>[]];
+        $i = 0;
+        $activityCount = 0;
+        $startCount = 0;
+        $completeCount = 0;
+        while($nextDate<=$toDate){
+            $reports['activity'][$nextDate] = Activity::whereDoneDate($nextDate)->count();
+            $activityCount += $reports['activity'][$nextDate];
+            $reports['start'][$nextDate] = ActivityWorkout::whereDoneDate($nextDate)->whereType('start')->count();
+            $startCount += $reports['start'][$nextDate];
+            $reports['complete'][$nextDate] = ActivityWorkout::whereDoneDate($nextDate)->whereType('complete')->count();
+            $completeCount += $reports['complete'][$nextDate];
+            $nextDate = date("Y-m-d",strtotime($nextDate) + 3600*24);
+            $i++;
+        }
+        $labels[] = "Average";
+        $reports['labels'] = $labels;
+        $reports['activity'] = array_values($reports['activity']);
+        $reports['activity'][] = round($activityCount/$i);
+        $reports['start'] = array_values($reports['start']);
+        $reports['start'][] = round($startCount/$i);
+        $reports['complete'] = array_values($reports['complete']);
+        $reports['complete'][] = round($completeCount/$i);
+        return $reports;
     }
     public function exportCustomers(Request $request){
         $from = $request->input("from");
@@ -138,5 +168,32 @@ class ReportController extends Controller
             $itemsArray
         ]);
         return Excel::download($export,'customers.xlsx');   
+    }
+    public function exportUsage(Request $request){
+        $fromDate = $request->input("from");
+        $toDate = $request->input("to");
+        $nextDate = $fromDate;
+        $itemsArray = [["Fecha","Activity","Start","Complete"]];
+        $i = 0;
+        $activityCount = 0;
+        $startCount = 0;
+        $completeCount = 0;
+        while($nextDate<=$toDate){
+            $activity = Activity::whereDoneDate($nextDate)->count();
+            $activityCount += $activity;
+            $start = ActivityWorkout::whereDoneDate($nextDate)->whereType('start')->count();
+            $startCount += $start;
+            $complete = ActivityWorkout::whereDoneDate($nextDate)->whereType('complete')->count();
+            $completeCount += $complete;
+            $itemsArray[] = [$nextDate, $activity, $start, $complete];
+            $nextDate = date("Y-m-d",strtotime($nextDate) + 3600*24);
+            $i++;
+        }
+        $labels[] = "Average";
+        $itemsArray[] = ["Average", round($activityCount/$i), round($startCount/$i), round($completeCount/$i)];
+        $export = new CustomersExport([
+            $itemsArray
+        ]);
+        return Excel::download($export,'usage.xlsx');   
     }
 }
