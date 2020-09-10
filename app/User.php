@@ -246,6 +246,7 @@ class User extends Authenticatable
             }
             $user['permissions'] = $result;
         }
+        $user['referral_discount'] = Setting::getReferralDiscount();
         $user['has_workout_subscription']=$hasWorkoutSubscription;
         $user['has_active_workout_subscription']=$hasActiveWorkoutSubscription;
         if($user->customer){

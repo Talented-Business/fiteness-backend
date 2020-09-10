@@ -36,6 +36,7 @@ class Workout extends Mailable
     {
         $subject = "Fitemos ".$this->publishDate;
         if($this->blog)$subject = "Contenido del ".$this->publishDate;
+        $subject = $this->publishDate;
         $sentences = explode("\n",$this->content[0]);
         foreach($sentences as $index=>$sentence){
             if(trim($sentences[$index])!=="")$sentences[$index] = "<p>".$sentences[$index]."</p>";

@@ -14,7 +14,7 @@ class AppendBlogTimercolumnsWorkoutTable extends Migration
     public function up()
     {
         Schema::table('workouts', function (Blueprint $table) {
-            $table->enum('blog_timer_type',['amrap','for_time','tabata'])->nullable();
+            $table->enum('blog_timer_type',['amrap','for_time','tabata','calentamiento','extra'])->nullable();
             $table->string('blog_timer_work')->nullable();
             $table->string('blog_timer_round')->nullable();
             $table->string('blog_timer_rest')->nullable();
