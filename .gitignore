@@ -1,6 +1,7 @@
 /node_modules
 /public/hot
 /database/seeds
+/database/seeds/UsersTableSeeder.php
 /public/storage
 /storage/*.key
 /vendor

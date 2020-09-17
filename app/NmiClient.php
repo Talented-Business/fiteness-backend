@@ -45,6 +45,8 @@ class NmiClient
             if(isset($token)===false){
                 $tocken = new PaymentTocken;
                 $card = $request->input('nmi');
+                $type = $tocken->findCardType($card['number']);
+                if($type == null ) throw new \Exception("Tarjeta de Credito invalible");
                 $user = $request->user('api');
                 $expiry = explode( ' / ', $card['exp'] );
                 if(isset($expiry[1])===false){

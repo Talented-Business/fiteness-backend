@@ -54,7 +54,7 @@ class ScrapeSubscriptions extends Command
                 print_r(date("Y-m-d H:i:s"));
                 print_r("\n");
                 //start;
-                Subscription::scrape();
+                if(env('INTERVAL_UNIT') == "MONTH") Subscription::scrape();
                 //MauticClient::scrape();
             }
             catch(\Exception $e){

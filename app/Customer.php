@@ -514,9 +514,13 @@ class Customer extends Model
                     if($i>100){break;}
                 }
             }
+            $currentDate = $this->currentDate();
             if(isset($previousDate)){
                 $today = $previousDate;
                 while( $workouts['previous'] == null){
+                    if(strtotime($today) + 3600*24*2<strtotime($currentDate)){
+                        break;
+                    }
                     $workout = $this->findSendableWorkout($today);
                     if($workout){
                         $workouts['previous'] = ['date'=>$workout['date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
@@ -530,6 +534,9 @@ class Customer extends Model
             if(isset($nextDate)){
                 $today = $nextDate;
                 while( $workouts['next'] == null){
+                    if(strtotime($today)>strtotime($currentDate)){
+                        break;
+                    }
                     $workout = $this->findSendableWorkout($today);
                     if($workout){
                         $workouts['next'] = ['date'=>$workout['date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
@@ -667,8 +674,13 @@ class Customer extends Model
     }
     public function send($workout){
         if($this->active_email){
-            SendEmail::dispatch($this,new \App\Mail\Workout($workout['date'],$workout['content'],$workout['blog']));
-            //Mail::to($this->email)->send(new \App\Mail\Workout($workout['date'],$workout['content'],$workout['blog']));
+            dispatch(function () use ($workout)  {
+                $config = new Config;
+                $construct = $config->findByName('sendmail handle'.$this->id);
+                $config->updateConfig('sendmail handle'.$this->id, date("Y-m-d H:i:s"));        
+            });
+            //SendEmail::dispatch($this,new \App\Mail\Workout($workout['date'],$workout['content'],$workout['blog']));
+            Mail::to($this->email)->send(new \App\Mail\Workout($workout['date'],$workout['content'],$workout['blog']));
         }
         if($this->active_whatsapp && $this->whatsapp_phone_number&&getenv("APP_ENV")!="local"){
             $to = $this->whatsapp_phone_number;

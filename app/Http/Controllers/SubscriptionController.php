@@ -174,7 +174,7 @@ class SubscriptionController extends Controller
                 $user->customer->setFriendShip($coupon);
             }
         }else{
-            return [$now,'failed', $response['error_message'],422];
+            return [false,'failed', $response['error_message'],422];
         }
         Cart::whereCustomerId($user->customer->id)->delete();
         //print_r($planSlug);
