@@ -40,7 +40,7 @@ class Event extends Model
         $response = $where->orderBy('post_date', 'DESC')->paginate($this->pageSize);
         $items = $response->items();
         foreach($items as $index=> $event){
-            $items[$index]['created_date'] = date('M d, Y',strtotime($event->created_at));
+            $items[$index]['created_date'] = date('M d, Y',strtotime($event->post_date));
             $event->category;
             $items[$index]['excerpt'] = $this->extractExcerpt($event->description);
             if($event->image)  $event->image = url('storage/'.$event->image);        

@@ -3,18 +3,16 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use App\Mail\MailQueue;
-use Mail;
+use App\User;
 
-
-class TestingMail extends Command
+class updateSocialAccounts extends Command
 {
     /**
      * The name and signature of the console command.
      *
      * @var string
      */
-    protected $signature = 'send:mail';
+    protected $signature = 'update:social';
 
     /**
      * The console command description.
@@ -40,7 +38,17 @@ class TestingMail extends Command
      */
     public function handle()
     {
-        $data = ['first_name'=>"testing first",'last_name'=>"testing last",'email'=>"testing@gmail.com",'gender'=>"Female",'view_file'=>'emails.customers.create','subject'=>'Checkout Completed'];
-        Mail::to("sui201837@gmail.com", env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
+        $users = User::all();
+        foreach($users as $user){
+            if($user->provider == "google"){
+                $user->google_provider_id = $user->provider_id;
+                $user->google_name = $user->name;
+            }
+            if($user->provider == "facebook"){
+                $user->facebook_provider_id = $user->provider_id;
+                $user->facebook_name = $user->name;
+            }
+            $user->save();
+        }
     }
 }

@@ -110,7 +110,7 @@ trait WorkoutTrait
             if(isset($record->{$slug.'_timer_type'}) && $record->{$slug.'_timer_type'}){
                 $result['timer_type'] = $record->{$slug.'_timer_type'};
                 $result['timer_work'] = $record->{$slug.'_timer_work'};
-                if($result['timer_work'] == null && in_array($slug,['calentamiento','extra'])){
+                if($result['timer_work'] == null && in_array($result['timer_type'],['calentamiento','extra'])){
                     $result['timer_work'] = 30;
                 }
                 if($record->{$slug.'_timer_type'}=='tabata'){

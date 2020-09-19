@@ -173,7 +173,7 @@ class AuthController extends Controller
         $client = new Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);  // Specify the CLIENT_ID of the app that accesses the backend
         $payload = $client->verifyIdToken($request->input('access_token'));
         if($payload){
-            $user = User::where('email','=',$payload['email'])->first();
+            $user = User::where('provider_id','=',$payload['sub'])->first();
             if($user==null){
                 return response()->json([
                     'errors' => ['account'=>[['error'=>'not registered']]]
@@ -282,8 +282,8 @@ class AuthController extends Controller
         $response = Facebook::get('/me', $request->input('access_token'));
         if($response){
             $group = $response->getGraphGroup();
-            $facebookEmail = $group->getEmail();
-            $user = User::where('email','=',$facebookEmail)->first();
+            $facebookId = $group->getId();
+            $user = User::where('provider_id','=',$facebookId)->first();
             if($user==null){
                 return response()->json([
                     'errors' => ['account'=>[['error'=>'not registered']]]

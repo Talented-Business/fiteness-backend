@@ -118,7 +118,7 @@ class StaticWorkout extends Model
             case "comentario":
             break;
             default:
-            if($request->exists($column.'_note'))$workout->{$column.'_note'} = $request->input('note');
+            if($request->exists('note'))$workout->{$column.'_note'} = $request->input('note');
             $workout->{$column.'_timer_type'} = $request->input('timer_type');
             $workout->{$column.'_timer_work'} = $request->input('timer_work');
             if($request->exists('timer_round'))$workout->{$column.'_timer_round'} = $request->input('timer_round');

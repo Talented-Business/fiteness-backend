@@ -110,6 +110,15 @@ class User extends Authenticatable
                 'provider_id' => $providerId
                 //'verify_code' => Str::random(32),
             ]);
+            if($provider == "google"){
+                $user->google_provider_id = $providerId;
+                $user->google_name = $record['first_name'].' '.$record['last_name'];
+            }
+            if($provider == "facebook"){
+                $user->facebook_provider_id = $providerId;
+                $user->facebook_name = $record['first_name'].' '.$record['last_name'];
+            }
+            $user->save();
             $condition = Condition::where('service_id',$serviceId)->skip($record['level']-1)->first();
             $customer = new Customer;
             $customer->first_name = $record['first_name'];

@@ -36,6 +36,10 @@ Route::put('users/email-only', 'UserController@updateEmail')->middleware('auth:a
 Route::put('users/update-password', 'UserController@updatePassword')->middleware('auth:api');
 Route::post('users/upload-image', 'UserController@updateImage')->middleware('auth:api');
 Route::delete('users/avatar', 'UserController@deleteImage')->middleware('auth:api');
+Route::delete('users/google', 'UserController@removeGoogle')->middleware('auth:api');
+Route::delete('users/facebook', 'UserController@removeFacebook')->middleware('auth:api');
+Route::post('users/google', 'UserController@addGoogle')->middleware('auth:api');
+Route::post('users/facebook', 'UserController@addFacebook')->middleware('auth:api');
 Route::resource('admins', 'AdminUserController')->middleware('auth:api');
 Route::get('admins/{id}/disable', 'AdminUserController@disable')->where('id', '[0-9]+')->middleware('auth:api');
 Route::get('admins/{id}/restore', 'AdminUserController@restore')->where('id', '[0-9]+')->middleware('auth:api');

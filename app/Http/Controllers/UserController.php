@@ -10,6 +10,9 @@ use App\User;
 use App\Customer;
 use App\Session;
 use Twilio\Rest\Client;
+use Google_Client;
+use Vinkla\Facebook\Facades\Facebook;
+
 
 class UserController extends Controller
 {
@@ -286,5 +289,56 @@ class UserController extends Controller
     public function show($id){
         $user = User::find($id);
         return $user;
+    }
+    public function removeGoogle(Request $request){
+        $user = $request->user('api');
+        $user->google_provider_id = null;
+        $user->google_name = null;
+        $user->save();
+    }
+    public function removeFacebook(Request $request){
+        $user = $request->user('api');
+        $user->facebook_provider_id = null;
+        $user->facebook_name = null;
+        $user->save();
+    }
+    public function addGoogle(Request $request){
+        $user = $request->user('api');
+        $client = new Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);  // Specify the CLIENT_ID of the app that accesses the backend
+        $payload = $client->verifyIdToken($request->input('id_token'));
+        if($payload){
+            $user->google_provider_id = $payload['sub'];
+            $user->google_name = $payload['given_name']." ".$payload['family_name'];
+            $user->save();
+            $me = User::findDetails($user);
+            return response()->json([
+                'user' => $me
+            ]);
+        }
+        return response()->json([
+            'errors' => ['password'=>[['error'=>'invalid']]]
+        ],401);
+        
+    }
+    public function addFacebook(Request $request){
+        $user = $request->user('api');
+        $response = Facebook::get('/me?&fields=first_name,last_name,email', $request->input('id_token'));
+        $provider = 'facebook';
+        if ($response) {
+            $group = $response->getGraphGroup();
+            $facebookId = $group->getId();
+            $firstName = $group->getProperty('first_name');
+            $lastName = $group->getProperty('last_name');
+            $user->facebook_provider_id = $facebookId;
+            $user->facebook_name = $firstName." ".$lastName;
+            $user->save();
+            $me = User::findDetails($user);
+            return response()->json([
+                'user' => $me
+            ]);
+        }
+        return response()->json([
+            'errors' => ['email'=>[['error'=>'failed']]]
+        ], 423);
     }
 }
