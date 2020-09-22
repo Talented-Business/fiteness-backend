@@ -256,8 +256,45 @@ class FindTransactions extends Command
         if(false){
             $this->surveyExport();
         }
-        if(true){
+        if(false){
             $this->loginActivity();
+        }
+        if(false){
+            $this->findActiveCustomersWithoutCreditCard();
+        }
+        if(true){
+            $this->findTransactionsWithoutCreditCard();
+        }
+    }
+    private function findTransactionsWithoutCreditCard(){
+        $from = 2511;
+        $to = 2531;
+        for($i=$from;$i<=$to;$i++){
+            $transaction = Transaction::find($i);
+            if($transaction){
+                $subscription = Subscription::whereCustomerId($transaction->customer_id)->first();
+                if($subscription->status == "Active"){
+                    print_r($subscription->customer_id);
+                    //print_r("Subscription");
+                    print_r("\n");
+                }else{
+                    //print_r($i);
+                    //print_r("Transaction");
+                    //print_r("\n");
+                }
+            }
+        }
+    }
+    private function findActiveCustomersWithoutCreditCard(){
+        $subscriptions = Subscription::whereStatus("Active")->get();
+        foreach( $subscriptions as $subscription){
+            $tokens = PaymentTocken::whereCustomerId($subscription->customer_id)->get();
+             if(count($tokens) == 0){
+                print_r($subscription->end_date);
+                print_r("********");
+                print_r($subscription->customer_id);
+                print_r("\n");
+             }
         }
     }
     private function loginActivity(){

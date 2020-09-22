@@ -20,3 +20,7 @@ Route::get('/paypal', function(){
     View::addExtension('html','php');
     return View::make('paypal');
 });
+Route::get('/login', function(){
+    View::addExtension('html','php');
+    return View::make('login');
+})->name('login');

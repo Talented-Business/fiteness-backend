@@ -329,9 +329,16 @@ class UserController extends Controller
             $facebookId = $group->getId();
             $firstName = $group->getProperty('first_name');
             $lastName = $group->getProperty('last_name');
-            $user->facebook_provider_id = $facebookId;
-            $user->facebook_name = $firstName." ".$lastName;
-            $user->save();
+            $facebookUser = User::whereFacebookProviderId($facebookId)->first();
+            if($facebookUser){
+                return response()->json([
+                    'errors' => ['email'=>[['error'=>'unique']]]
+                ], 421);
+            }else{
+                $user->facebook_provider_id = $facebookId;
+                $user->facebook_name = $firstName." ".$lastName;
+                $user->save();
+            }
             $me = User::findDetails($user);
             return response()->json([
                 'user' => $me

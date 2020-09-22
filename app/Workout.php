@@ -166,8 +166,8 @@ class Workout extends Model
             $request->file('image')->storeAs($basePath, $fileName);
             $workout->image_path = '/storage/' . $basePath . '/' . $fileName;
             $workout->save();
-            $workout->image_path = env('APP_URL').$workout->image_path;
         }        
+        if($workout->image_path!=null)$workout->image_path = env('APP_URL').$workout->image_path;
         return $workout;
     }
     public static function preview($request)
