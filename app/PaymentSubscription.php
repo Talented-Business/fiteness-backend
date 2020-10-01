@@ -262,17 +262,19 @@ class PaymentSubscription extends Model
             //last paymentSubscription;
             list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
             if (in_array($provider, $paymentProviders) && ($this->status == 'Active' || $this->status == 'Approved')) {
+                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Payment subscription active or approved----");
                 if ($provider == 'nmi') {
                     $nextPaymentTime = $this->getEndDate($subscription->transaction);
+                    if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Nmi start----");
                     if($nextPaymentTime && date('Y-m-d H:i:s')>$nextPaymentTime){
                         $this->recurringNmi();
-                        print_r('Nmi request');
+                        if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Nmi reqiest----");
                     }else{
-                        print_r('None Nmi request');
+                        if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Nmi non request----");
                     }
-                    print_r("\n");
+                    if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Nmi end----");
                 } else {
-
+                    if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Non Nmi----");
                 }
             }
         }

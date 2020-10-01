@@ -9,6 +9,7 @@ use App\Mail\SubscriptionCancel;
 use App\Mail\SubscriptionCancelAdmin;
 use Illuminate\Support\Facades\DB;
 use Mail;
+use Illuminate\Support\Facades\Log;
 
 class Subscription extends Model
 {
@@ -27,6 +28,7 @@ class Subscription extends Model
         'expensive'=>'Muy costoso / no tengo tiempo',
         'other'=>'Otro',
     ];
+    const TRACK_CUSTOMER_IDS = [4913,4743,4920,4937,4941,4988];
     public static function validateRules()
     {
         return array(
@@ -500,10 +502,13 @@ class Subscription extends Model
 
         if ($lastPaymentSubscription && $lastTransaction) {
             list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $lastPaymentSubscription->analyzeSlug();
+            if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- payment analyze slug----");
             if ($this->transaction_id != $lastTransaction->id || $this->status == 'Pending-Cancellation' || $this->status == 'Pending') {
                 //according to last subscription, update start date and end date, status and so on.
+                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- massSave----");
                 $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $lastPaymentSubscription->plan_id, $startDate, $endDate, $lastTransaction, $lastPaymentSubscription->status);
             } else {
+                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- last payment subscription status $lastPaymentSubscription->status ----");
                 $endDate = $lastPaymentSubscription->getEndDate();
                 $changed = false;
                 switch ($lastPaymentSubscription->status) {
@@ -633,7 +638,13 @@ class Subscription extends Model
                     });
                 })->first();
                 if ($subscription) {
-                    $subscription->scraping();
+                    if(in_array($subscription->customer_id, self::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("----Subscription scrape Start $subscription->customer_id ----");
+                    try{
+                        $subscription->scraping();
+                    }catch(\Exception $e){
+                        if(in_array($subscription->customer_id, self::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("----Subscription scrape error ".$e->getMessage()." ----");
+                    }
+                    if(in_array($subscription->customer_id, self::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("----Subscription scrape End $subscription->customer_id ----");
                 } else {
                     //new creation if payment subscription exist
                     $paymentSubscription = PaymentSubscription::whereCustomerId($customer->id)->first();

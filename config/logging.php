@@ -50,6 +50,11 @@ return [
             'path' => storage_path('logs/nmi/requests-'.date('Y-m-d').'.log'),
             'level' => 'info',
         ],        
+        'nmiTrack' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/track/scrape-'.date('Y-m-d').'.log'),
+            'level' => 'info',
+        ],        
         'stack' => [
             'driver' => 'stack',
             'channels' => ['daily'],
