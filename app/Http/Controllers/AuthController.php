@@ -174,6 +174,7 @@ class AuthController extends Controller
         $payload = $client->verifyIdToken($request->input('access_token'));
         if($payload){
             $user = User::where('provider_id','=',$payload['sub'])->first();
+            if($user == null)$user = User::where('google_provider_id','=',$payload['sub'])->first();
             if($user==null){
                 return response()->json([
                     'errors' => ['account'=>[['error'=>'not registered']]]
@@ -284,6 +285,7 @@ class AuthController extends Controller
             $group = $response->getGraphGroup();
             $facebookId = $group->getId();
             $user = User::where('provider_id','=',$facebookId)->first();
+            if($user == null)$user = User::where('facebook_provider_id','=',$facebookId)->first();
             if($user==null){
                 return response()->json([
                     'errors' => ['account'=>[['error'=>'not registered']]]

@@ -519,7 +519,7 @@ class Customer extends Model
                 $today = $previousDate;
                 while( $workouts['previous'] == null){
                     if(strtotime($today) + 3600*24*2<strtotime($currentDate)){
-                        break;
+                        //break;
                     }
                     $workout = $this->findSendableWorkout($today);
                     if($workout){
@@ -535,7 +535,7 @@ class Customer extends Model
                 $today = $nextDate;
                 while( $workouts['next'] == null){
                     if(strtotime($today)>strtotime($currentDate)){
-                        break;
+                        //break;
                     }
                     $workout = $this->findSendableWorkout($today);
                     if($workout){

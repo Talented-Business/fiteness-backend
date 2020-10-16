@@ -58,7 +58,8 @@
             <div style="margin-top:20px">&nbsp;</div>
             <div style="margin:0 9px;padding:0 9px;">
                 <div style="display:inline-block;width:50%">
-                Teléfono: {{$company->phone}} 
+                    <span>Teléfono:</span> 
+                    {{$company->phone}} 
                     @if($company->mobile_phone)
                     / {{$company->mobile_phone}}
                     @endif
@@ -67,19 +68,19 @@
                 <div style="display:inline-block;width:50%">
                     <span>Website:</span> 
                     @if($company->website_url)
-                        <a target="_blank" href={{$company->website_url}}><b>{{$company->website_url}}</b></a>
+                        {{$company->website_url}}
                     @endif
                 </div>
             </div>    
             <div style="margin:0 9px;padding:0 9px;">
                 <div style="display:inline-block;width:50%">
-                    <span>Correo:</span> <a href="mailto:{{$company->mail}}"><b>{{$company->mail}}</a>
+                    <span>Correo:</span> {{$company->mail}}
                 </div>    
             
                 <div style="display:inline-block;width:50%">
                     <span>Facebook:</span> 
                     @if($company->facebook)
-                        <a target="_blank" href={{$company->facebook}} ><b>{{$company->facebook}}</b></a>
+                        {{$company->facebook}}
                     @endif    
                 </div>
             </div>    
@@ -93,13 +94,13 @@
                 <div style="display:inline-block;width:50%">
                     <span>Instagram:</span>
                     @if($company->instagram)
-                     <a target="_blank" href={{$company->instagram}} ><b>{{$company->instagram}}<b></a>
+                     {{$company->instagram}}
                     @endif
                 </div>    
             </div>
             <div style="margin:0 9px;padding:0 9px;">    
                 <div style="display:inline-block;width:50%">
-                    dirección: 
+                    <span>Dirección:</span> 
                     @if($company->address)
                         {{$company->address}}
                     @endif
@@ -107,7 +108,7 @@
                 <div style="display:inline-block;width:50%">
                     <span>Twitter:</span> 
                     @if($company->twitter)
-                        <a target="_blank" href={{$company->twitter}} ><b>{{$company->twitter}}<b></a>
+                        {{$company->twitter}}
                     @endif    
                 </div>    
             </div>
@@ -120,8 +121,8 @@
                 <div style="display:inline-block;width:150px;vertical-align:top;">
                     <img src="{{$image}}" width="150"/>
                 </div>
-                <div style="display:inline-block; margin-left:20px;width:400px;">
-                    <h3>{{$product->name}}</h3>
+                <div style="display:inline-block; margin-left:20px;width:400px;vertical-align:top;">
+                    <h3 style="vertical-align:top;">{{$product->name}}</h3>
                     <div class="product-description">
                         {{$product->description}}
                     </div>
@@ -134,7 +135,7 @@
                     @if($product->price_type == "offer")
                         <span style="text-decoration: line-through">${{$product->regular_price}}</span><span>${{$product->price}}</span>
                     @else
-                        {{$product->discount}}
+                        {{$product->discount}}%
                     @endif
                 </div>
             
@@ -152,7 +153,7 @@
                 <div style="display:inline-block;width:50%">
                     <span>E-commerce Link:</span> 
                     @if($product->link)
-                        <a target="_blank" href={{$product->link}} ><b>{{$product->link}}<b></a>
+                        {{$product->link}}
                     @endif          
                 </div>
             </div>
@@ -163,7 +164,7 @@
             <li>Este Voucher ya está activo, puede proceder a canjearlo en el comercio.</li>
             <li>Este Voucher podrá volverlo a descargar, si se llega a expirar.</li>
             <li>El Comercio es independiente a Fitemos. Fitemos no se hace responsable sobre los productos o servicios ofrecidos por el comercio.</li>
-            <li>Si tiene alguna queja o comentario sobre el comercio puede contactarnos a hola@fitemos.com</li>
+            <li>Si tiene alguna queja o comentario sobre el comercio puede contactarnos a hola@fitemos.com.</li>
             <li>Usted al utilizar este Voucher acepta estar en total conformidad con todo lo antes mencionado.</li>
         </ul>
     </body>

@@ -28,7 +28,7 @@ class Subscription extends Model
         'expensive'=>'Muy costoso / no tengo tiempo',
         'other'=>'Otro',
     ];
-    const TRACK_CUSTOMER_IDS = [4913,4743,4920,4937,4941,4988];
+    const TRACK_CUSTOMER_IDS = [4584];
     public static function validateRules()
     {
         return array(
@@ -660,7 +660,7 @@ class Subscription extends Model
     {
         list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentSubscription->analyzeSlug();
         $lastTransaction = $paymentSubscription->findLastTransaction();
-        $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $paymentSubscription->plan_id, $startDate, $endDate, $lastTransaction, $paymentSubscription->status);
+        $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $paymentSubscription->plan_id, date("Y-m-d H:i:s"), null, $lastTransaction, $paymentSubscription->status);
     }
     public static function scrape()
     {

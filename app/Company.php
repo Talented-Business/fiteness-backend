@@ -27,6 +27,9 @@ class Company extends Model
             'logo' => 'mimes:jpeg,jpg,png,gif|max:'.$uploadMaxSize,
         );
     }
+    public function countries(){
+        return $this->hasMany("App\CompanyCountry");
+    }
     public function getImageSize($logo,$size) 
     {
         $image =  implode('-' . Setting::IMAGE_SIZES[$size] . '.', explode('.', $logo));
@@ -103,23 +106,16 @@ class Company extends Model
         $this->pageNumber = $request->input('pageNumber');
     }
     public function frontSearch(){
-        //DB::enableQueryLog();
-        $where= DB::table("companies")
-            ->leftJoin('company_countries', function ($join) {
-                $join->on('companies.id', '=', 'company_countries.company_id');
+        // DB::enableQueryLog();
+        $where = Company::whereHas('countries',function($query){
+            $query->where('country','=',strtoupper($this->countryCode));
             })
-            ->rightJoin('products', function ($join) {
-                $join->on('companies.id', '=', 'products.company_id')
-                    ->where('products.status', '=', "Active")
-                    ->where('products.expiration_date', '>=', $this->expirationDate);
-            })
-            ->select("companies.*")
-            ->where("companies.is_all_countries", "=", "yes")
-            ->orWhere(function($query) {
-                $query->where("companies.is_all_countries", "=", "no")
-                      ->where('company_countries.country', '=', strtoupper($this->countryCode));
-            })->groupBy("companies.id");
-        //$where= DB::table("companies")->select("companies.*");
+            ->where('is_all_countries','=','no')
+            ->orWhere('is_all_countries','=','yes')
+            ->whereHas('products',function($query){
+                $query->where('status', '=', "Active")
+                    ->where('expiration_date', '>=', $this->expirationDate);
+            });
         $currentPage = $this->pageNumber+1;
         Paginator::currentPageResolver(function () use ($currentPage) {
             return $currentPage;
@@ -130,7 +126,7 @@ class Company extends Model
             //print_r($item->logo);die;
             $items[$index]->logo = url("storage/".$item->logo);
         }
-        //dd(DB::getQueryLog());
+        // dd(DB::getQueryLog());
         return $response;
     }
 }

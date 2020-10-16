@@ -36,7 +36,8 @@ class SubscriptionController extends Controller
             $subscription = Subscription::find($id);
             $subscription->customer;
             $subscription['serviceName'] = $subscription->plan->service->title;
-            $subscription['startDate'] = date('d/m/y',strtotime($subscription->start_date));
+            if($subscription->start_date)$subscription['startDate'] = date('d/m/y',strtotime($subscription->start_date));
+            else $subscription['startDate'] = '';
             if($subscription->end_date)$subscription['endDate'] = date('d/m/y',strtotime($subscription->end_date));
             if($subscription->cancelled_date)$subscription['cancelledDate'] = date('d/m/y',strtotime($subscription->cancelled_date));
             if($subscription->end_date && $subscription->status == 'Active'){

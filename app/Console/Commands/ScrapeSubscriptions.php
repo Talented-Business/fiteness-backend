@@ -60,6 +60,8 @@ class ScrapeSubscriptions extends Command
             catch(\Exception $e){
                 echo 'error';
                 echo $e->getMessage();
+                print_r($e->getTraceAsString());
+                $config->updateConfig('subscription_scraping_error', $e->getTraceAsString());
             }
             finally{
                 $config->updateConfig('subscription_scraping', 'end');
