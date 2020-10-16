@@ -106,7 +106,7 @@ trait WorkoutTrait
     private static function getNotes($record, $slug){
         $result = null;
         if(isset($record->{$slug})&&$record->{$slug}){
-            $result = ['content'=>$record->{$slug},'note'=>$record->{$slug.'_note'}];
+            $result = ['content'=>$record->{$slug},'note'=>$record->{$slug.'_note'},'slug'=>$slug];
             if(isset($record->{$slug.'_timer_type'}) && $record->{$slug.'_timer_type'}){
                 $result['timer_type'] = $record->{$slug.'_timer_type'};
                 $result['timer_work'] = $record->{$slug.'_timer_work'};
