@@ -495,7 +495,7 @@ class PaymentSubscription extends Model
             if ($transaction) {
                 $subscription->transaction_id = $transaction->id;
                 $customer = Customer::find($customerId);
-                if ($customer->first_payment_date == null && $transaction->status == 'Completed') {
+                if ($customer->first_payment_date == null && $transaction->status == 'Completed' && $transaction->total>0) {
                     $customer->first_payment_date = date('Y-m-d', strtotime($transaction->done_date));
                     $customer->save();
                 }

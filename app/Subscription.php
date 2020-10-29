@@ -28,7 +28,7 @@ class Subscription extends Model
         'expensive'=>'Muy costoso / no tengo tiempo',
         'other'=>'Otro',
     ];
-    const TRACK_CUSTOMER_IDS = [4584];
+    const TRACK_CUSTOMER_IDS = [2183];
     public static function validateRules()
     {
         return array(
@@ -489,6 +489,10 @@ class Subscription extends Model
         if($paymentSubscription&&(strtotime($this->start_date) + $this->plan->free_duration*3600*24<time()) ){
             $paymentSubscription->firstProcessingWithCustomerVault($this);
         }
+        if ($this->end_date && $this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
+            $this->status = 'Cancelled';
+            $this->save();
+        }
     }
     private function scrapingPaid()
     {
@@ -550,7 +554,7 @@ class Subscription extends Model
                 if ($lastTransaction) {
                     $this->transaction_id = $lastTransaction->id;
                     $customer = Customer::find($customerId);
-                    if ($customer->first_payment_date == null && $lastTransaction->id>0) {
+                    if ($customer->first_payment_date == null && $lastTransaction->id>0 && $lastTransaction->total>0) {
                         $customer->first_payment_date = date('Y-m-d', strtotime($lastTransaction->done_date));
                         $customer->save();
                     }
@@ -628,7 +632,7 @@ class Subscription extends Model
             $query->whereHas('user', function ($q) {
                 $q->where('active', '=', 1);
             });
-        })->get();
+        })->where('id',2183)->get();
         $services = Service::all();
         foreach ($services as $service) {
             foreach ($customers as $customer) { //I didn't consider service_id
@@ -681,14 +685,16 @@ class Subscription extends Model
             } else {
                 $this->cancelled_date = date('Y-m-d H:i:s');
                 $this->end_date = date('Y-m-d H:i:s');
+                $this->status = 'Cancelled';
             }
             $this->cancelled_now = $enableEnd;
             $this->quality_level = $qualityLevel;
             $this->cancelled_radio_reason = $radioReason;
             if($reasonText)$this->cancelled_radio_reason_text = $reasonText;
             $this->recommendation = $recommendation;
-            $this->status = 'Cancelled';
             $this->save();
+            $paymentSubscription = PaymentSubscription::whereCustomerId($this->customer_id)->wherePlanId($this->payment_plan_id)->first();
+            if($paymentSubscription)$paymentSubscription->cancelAction();
             $cancelDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->cancelled_date)));
             $subscriptionEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->end_date)));
             Mail::to($this->customer->email)->send(new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));                    

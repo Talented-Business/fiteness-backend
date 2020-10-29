@@ -853,6 +853,7 @@ class Customer extends Model
         }
         $itemsArray = [];
         $itemsArray[] = ['ID','Nombre','Last Name','Correo',
+        'Cliente (SI / NO )',// SI → if customer pay at least one cent,No → if customer has not paid
         'Quiere verlo en el correo',//new active_email
         'Whatsapp',
         'Quiere recibir WA',//new active_whatsapp
@@ -864,6 +865,7 @@ class Customer extends Model
         'TIPO DE PAGO',//new payment card type
         'RECIBIENDO SERVICIO',//active subscription?Si/No
         'FECHA REGISTRO',//Registration Date
+        'Inicio de suscripción',//date when subscription start
         'FECHA PRIMER PAGO',//First Payment Date
         'MESES ENTRE PAGO Y REGISTRO',// new the count of months between registeration date and first payment date.
         'FECHA CANCELACIÓN SUSCRIPCIÓN',//new cancellation date
@@ -901,6 +903,7 @@ class Customer extends Model
             $stars = '';
             $reason = '';
             $feedback = '';
+            $subscriptionStartDate = '';
             if($customer->user->active == 0){
                 $status = "Disabled";
             }else{
@@ -918,6 +921,7 @@ class Customer extends Model
                     if($subscription->status == "Cancelled"){
                         $status = "Cancelled";
                     }
+                    if($subscription->start_date)$subscriptionStartDate = $subscription->start_date;
                     $cancellationDate = $subscription->cancelled_date;
                     $cancelledNow = $subscription->cancelled_now;
                     $stars = $subscription->quality_level;
@@ -1013,6 +1017,7 @@ class Customer extends Model
                 $customer->first_name,
                 $customer->last_name,
                 $customer->email,
+                $total>0?'Si':'No',
                 $customer->active_email?'Si':'No',
                 $customer->whatsapp_phone_number,
                 $customer->active_whatsapp?'Si':'No',
@@ -1024,6 +1029,7 @@ class Customer extends Model
                 implode(',',$cardTypes),//'TIPO DE PAGO',//new payment card type
                 $customer->hasActiveSubscription()?'Si':'No',//'RECIBIENDO SERVICIO',//active subscription?Si/No
                 $customer->registration_date, //'FECHA REGISTRO',//Registration Date
+                $subscriptionStartDate,
                 $customer->first_payment_date, //'FECHA PRIMER PAGO',//First Payment Date
                 $firstDateDiff,// new the count of months between registeration date and first payment date.
                 $cancellationDate,//new cancellation date
