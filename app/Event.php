@@ -2,6 +2,7 @@
 
 namespace App;
 
+use Intervention\Image\Facades\Image;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
 
@@ -81,5 +82,20 @@ class Event extends Model
         $this->post_date = date("Y-m-d H:i:s");
         $this->pageSize = $request->input('pageSize');
         $this->pageNumber = $request->input('pageNumber');
+    }
+    public function resizeImage($photoPath,$fileNameUpdate)
+    {   
+        $resizeImg = Image::make('storage/' . $photoPath.'/'.$fileNameUpdate);
+        $height = $resizeImg->height();
+        $width = $resizeImg->width();
+        if($width>720){
+            $cropWidth = 720;
+            $cropHeight = 720/$width*$height;
+            $resizeImg->crop($width, $height, 0, 0)
+            ->resize($cropWidth, $cropHeight, function($constraint) {
+                $constraint->aspectRatio();
+            });
+        }
+        $resizeImg->save('storage/' . $photoPath .'/m/'.$fileNameUpdate);
     }
 }

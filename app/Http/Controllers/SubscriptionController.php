@@ -167,6 +167,7 @@ class SubscriptionController extends Controller
                 //create paymentSubscription and 
                 $subscription->start_date = date("Y-m-d H:i:s");
                 $subscription->status="active";
+                $subscription->plan_id = $freePlan->id;
                 $subscription->payment_plan_id = $paymentPlan->plan_id;
                 $subscription->save();
                 $paymentSubscription = new PaymentSubscription;

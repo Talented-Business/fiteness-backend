@@ -24,6 +24,8 @@ class EventController extends Controller
             $event = new Event;
             if($request->hasFile('image')&&$request->file('image')->isValid()){ 
                 $photoPath = $request->image->store('photos');
+                $fileNameUpdate = basename($photoPath);
+                $event->resizeImage('photos',$fileNameUpdate);
                 $event->image = $photoPath;
             }        
             $event->assign($request);
@@ -44,6 +46,8 @@ class EventController extends Controller
             $event = Event::find($id);
             if($request->hasFile('image')&&$request->file('image')->isValid()){ 
                 $photoPath = $request->image->store('photos');
+                $fileNameUpdate = basename($photoPath);
+                $event->resizeImage('photos',$fileNameUpdate);
                 $event->image = $photoPath;
             }        
             $event->assign($request);
@@ -90,6 +94,26 @@ class EventController extends Controller
         return response()->json($event);
     }
     public function index(Request $request){
+        $files = \Storage::disk('public')->files('photos');
+        $convertFiles = [];
+        foreach($files as $file){
+            $key = basename($file);
+            $convertFiles[$key] = $file;
+        }
+        $mfiles = \Storage::disk('public')->files('photos/m');
+        $convertmFiles = [];
+        foreach($mfiles as $file){
+            $key = basename($file);
+            $convertmFiles[$key] = $file;
+            if(isset($convertFiles[$key])){
+                unset($convertFiles[$key]);   
+            }
+        }
+        $event =  new Event;
+        foreach($convertFiles as $file){
+            $fileNameUpdate = basename($file);
+            $event->resizeImage('photos',$fileNameUpdate);
+        }
         $user = $request->user('api');
         if($user->can('events')){
             $event = new Event;

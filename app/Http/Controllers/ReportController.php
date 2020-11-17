@@ -10,6 +10,7 @@ use App\Exports\CustomersExport;
 use App\Activity;
 use App\ActivityWorkout;
 use App\Workout;
+use App\Done;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ReportController extends Controller
@@ -257,6 +258,7 @@ class ReportController extends Controller
                         ];
                     }
                 }    
+                $workouts = Done::where('customer_id','=',$customer['id'])->get();
                 $results[] = ['id'=>$item->id,'pos'=>$pos,'avatar_url'=>$avatarUrls,'name'=>$item->first_name.' '.$item->last_name,'workout_completeness'=>round($customer['workouts']/$workoutCount*100),'workout_complete_count'=>$customer['workouts'].'/'.$workoutCount,'total'=>count($workouts)];
             }
         }
@@ -285,7 +287,7 @@ class ReportController extends Controller
             $itemsArray = [$headers];
             $nextDate = date("Y-m-d",strtotime($nextDate) + 3600*24);
         }
-        for($i=0;$i<16;$i++){
+        for($i=0;$i<17;$i++){
             switch($i){
                 case 0:
                     $item = ['Registered'];

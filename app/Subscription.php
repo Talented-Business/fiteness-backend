@@ -28,7 +28,7 @@ class Subscription extends Model
         'expensive'=>'Muy costoso / no tengo tiempo',
         'other'=>'Otro',
     ];
-    const TRACK_CUSTOMER_IDS = [2183];
+    const TRACK_CUSTOMER_IDS = [5254];
     public static function validateRules()
     {
         return array(
@@ -486,12 +486,20 @@ class Subscription extends Model
     }
     private function scrapingFree(){
         $paymentSubscription = PaymentSubscription::wherePlanId($this->payment_plan_id)->whereStatus('Approved')->first();
-        if($paymentSubscription&&(strtotime($this->start_date) + $this->plan->free_duration*3600*24<time()) ){
-            $paymentSubscription->firstProcessingWithCustomerVault($this);
+        if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- firstProcessingWithCustomerVault Free----".($paymentSubscription == null));
+        if(strtotime($this->start_date) + $this->plan->free_duration*3600*24<time() ){
+            if($paymentSubscription)$paymentSubscription->firstProcessingWithCustomerVault($this);
+            else{
+                if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Payment subscription is null----");
+            }
         }
         if ($this->end_date && $this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
             $this->status = 'Cancelled';
             $this->save();
+        }
+        if($this->status == 'Cancelled' && $paymentSubscription){
+            $paymentSubscription->status = 'Cancelled';
+            $paymentSubscription->save();
         }
     }
     private function scrapingPaid()
@@ -518,7 +526,7 @@ class Subscription extends Model
                 switch ($lastPaymentSubscription->status) {
                     case 'Cancelled':
                         if ($this->end_date === null) {
-                            $this->end_date = $endDate;
+                            $this->end_date = $this->transaction?$this->transaction->done_date:$endDate;
                             $changed = true;
                         }
                         if ($this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
@@ -632,7 +640,7 @@ class Subscription extends Model
             $query->whereHas('user', function ($q) {
                 $q->where('active', '=', 1);
             });
-        })->where('id',2183)->get();
+        })->where('id',5254)->get();
         $services = Service::all();
         foreach ($services as $service) {
             foreach ($customers as $customer) { //I didn't consider service_id

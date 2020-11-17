@@ -77,6 +77,7 @@ class GenerateReport extends Command
                             if($amount>0){
                                 $leavingCustomers++;
                                 $customerChurn++;
+                                $customerBase++;
                             }
                             else {
                                 $leavingTrials++;
@@ -84,10 +85,12 @@ class GenerateReport extends Command
                             }
                         }else{
                             $activeUsers++;
-                            if($amount>0)$activeCustomers++;
+                            if($amount>0){
+                                $activeCustomers++;
+                                $customerBase++;                                
+                            }
                             else $activeTrials++;
                         }
-                        $customerBase++;
                     }else{
                         if($subscription->status == "Cancelled"){
                             $totalUsers++;
@@ -96,10 +99,10 @@ class GenerateReport extends Command
                             if($amount>0){
                                 $exCustomer++;
                                 $customerChurn++;
-                                $trialChurn++;
                             }
                             else {
                                 $exTrial++;
+                                $trialChurn++;
                             }
                         }else{
                             $inactive++;

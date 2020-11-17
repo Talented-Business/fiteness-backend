@@ -194,6 +194,7 @@ class PaymentSubscription extends Model
             list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
             if (in_array($provider, $paymentProviders) && ($this->status == 'Active' || $this->status == 'Approved')) {
                 if ($provider == 'nmi') {
+                    if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- firstProcessingWithCustomerVault----");
                     $nextPaymentTime = date('Y-m-d H:i:s',strtotime($subscription->start_date) + $subscription->plan->free_duration*3600*24);
                     if($nextPaymentTime && date('Y-m-d H:i:s')>$nextPaymentTime ){
                         $result = $this->firstPayNmi($subscription);
@@ -201,6 +202,11 @@ class PaymentSubscription extends Model
                             $subscription->plan_id = $planId;
                             $subscription->meta = $slug;
                             $subscription->transaction_id = $result['transaction']->id;
+			                if($subscription->end_date)$subscription->end_date = null;
+                            $subscription->save();
+                        }else{
+                            if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- end_date ----");
+                            $subscription->end_date = date('Y-m-d H:i:s');
                             $subscription->save();
                         }
                         print_r('Nmi first request');
@@ -301,6 +307,10 @@ class PaymentSubscription extends Model
             } catch (\Exception $e) {
                 //wc_add_notice( sprintf( __( 'Gateway Error: %s', 'wc-nmi' ), $e->getMessage() ), 'error' );
                 Log::channel('nmiPayments')->error(sprintf('Gateway Error: %s', $e->getMessage()));
+                if($this->status == 'Approved'){
+                    $this->status = 'Cancelled';
+                    $this->save();
+                }
                 return [
                     'result' => 'failed',
                     'error_message' => $e->getMessage(),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Benchmark;
+use App\Event;
 use App\BenchmarkResult;
 use Illuminate\Support\Facades\Validator;
 
@@ -24,6 +25,9 @@ class BenchmarkController extends Controller
             if($request->hasFile('image')&&$request->file('image')->isValid()){ 
                 $photoPath = $request->image->store('photos');
                 $benchmark->image = $photoPath;
+                $fileNameUpdate = basename($photoPath);
+                $event = new Event;
+                $event->resizeImage('photos',$fileNameUpdate);
             }        
             $benchmark->assign($request);        
             $benchmark->save();
@@ -44,6 +48,9 @@ class BenchmarkController extends Controller
             if($request->hasFile('image')&&$request->file('image')->isValid()){ 
                 $photoPath = $request->image->store('photos');
                 $benchmark->image = $photoPath;
+                $fileNameUpdate = basename($photoPath);
+                $event = new Event;
+                $event->resizeImage('photos',$fileNameUpdate);
             }        
             $benchmark->assign($request);
             $benchmark->save();
