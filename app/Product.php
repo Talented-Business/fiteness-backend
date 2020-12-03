@@ -68,15 +68,15 @@ class Product extends Model
     }
     public function getRelatedItems($customer){
         $products= DB::table("products")
-            ->rightJoin('companies', function ($join) {
+            ->rightJoin('companies', function ($join) use ($customer) {
                 $join->on('companies.id', '=', 'products.company_id')
                 ->leftJoin('company_countries', function ($join) {
                     $join->on('companies.id', '=', 'company_countries.company_id');
                 })
                 ->where("companies.is_all_countries", "=", "yes")
-                ->orWhere(function($query) {
+                ->orWhere(function($query) use ($customer){
                     $query->where("companies.is_all_countries", "=", "no")
-                          ->where('company_countries.country', '=', strtoupper($this->countryCode));
+                          ->where('company_countries.country', '=', strtoupper($customer->country_code));
                 });
             })
             ->rightJoin('product_gallery', function ($join) {

@@ -37,7 +37,7 @@ class ReportController extends Controller
         foreach($customers as $customer){
             $registeredDate = $customer->created_at->format('Y-m-d');
             $reports['registers'][$registeredDate] = $reports['registers'][$registeredDate] + 1;
-            if(isset($customer->subscriptions[0])){
+            if(isset($customer->subscriptions[0]) && $customer->subscriptions[0]->status!='Pending'){
                 $reports['users'][$registeredDate] = $reports['users'][$registeredDate] + 1;
                 if($customer->subscriptions[0]->plan->type=="Paid" && $customer->subscriptions[0]->start_date){
                     $reports['clients'][$registeredDate] = $reports['clients'][$registeredDate] + 1;

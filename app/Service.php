@@ -76,6 +76,10 @@ class Service extends Model
             if($this['yearly'] == null)$this['yearly']="";
             $this['frequency'] = $paid->frequency;
             if($this['frequency'] == null)$this['frequency']="";
+            $this['bank_1'] = $paid->bank_1;
+            $this['bank_3'] = $paid->bank_3;
+            $this['bank_6'] = $paid->bank_6;
+            $this['bank_12'] = $paid->bank_12;
         }
         if(isset($free)){
             $this['free_duration'] = $free->free_duration;
@@ -124,6 +128,21 @@ class Service extends Model
         }
         if($request->exists('frequency')){
             $paid->frequency = $request->input('frequency');
+        }
+        if($request->exists('bank_1')){
+            $paid->bank_1 = $request->input('bank_1');
+        }
+        if($request->exists('bank_1')){
+            $paid->bank_3 = $request->input('bank_3');
+        }
+        if($request->exists('bank_1')){
+            $paid->bank_6 = $request->input('bank_6');
+        }
+        if($request->exists('bank_1')){
+            $paid->bank_12 = $request->input('bank_12');
+        }
+        if($request->exists('bank_fee')){
+            $paid->bank_fee = $request->input('bank_fee');
         }
         if($savePaid)$paid->save();
         if($free && $request->exists('free_duration')){

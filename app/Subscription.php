@@ -28,7 +28,7 @@ class Subscription extends Model
         'expensive'=>'Muy costoso / no tengo tiempo',
         'other'=>'Otro',
     ];
-    const TRACK_CUSTOMER_IDS = [5254];
+    const TRACK_CUSTOMER_IDS = [4584,5176,5266,5385,111];
     public static function validateRules()
     {
         return array(
@@ -598,6 +598,7 @@ class Subscription extends Model
                     $paymentSubscription->status = 'Cancelled';
                     $paymentSubscription->save();
                     $this->status = 'Cancelled';
+                    $this->end_date = date('Y-m-d H:i:s');
                     $this->transaction_id = $lastTransaction->id;
                     $this->save();
                 }
@@ -640,7 +641,7 @@ class Subscription extends Model
             $query->whereHas('user', function ($q) {
                 $q->where('active', '=', 1);
             });
-        })->where('id',5254)->get();
+        })->where('id',111)->get();
         $services = Service::all();
         foreach ($services as $service) {
             foreach ($customers as $customer) { //I didn't consider service_id

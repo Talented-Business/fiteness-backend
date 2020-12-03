@@ -27,6 +27,7 @@
         "sendgrid/sendgrid": "^7.4",
         "spatie/laravel-permission": "^3.11",
         "twilio/sdk": "^5.42",
+        "lcobucci/jwt":"^3.4",
         "vinkla/facebook": "^4.0"
     },
     "require-dev": {

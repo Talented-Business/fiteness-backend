@@ -271,6 +271,8 @@ class PaymentSubscription extends Model
                 if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Payment subscription active or approved----");
                 if ($provider == 'nmi') {
                     $nextPaymentTime = $this->getEndDate($subscription->transaction);
+                    if($subscription->transaction && $subscription->transaction->status == 'Pending') $nextPaymentTime = date($subscription->transaction->created_at);
+                    if($nextPaymentTime == null && $subscription->plan_id == 2)$nextPaymentTime = date('Y-m-d H:i:s', time()-10);
                     if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Nmi start----");
                     if($nextPaymentTime && date('Y-m-d H:i:s')>$nextPaymentTime){
                         $this->recurringNmi();

@@ -155,7 +155,8 @@ class CompanyController extends Controller
         $company = Company::find($id);
         $size = 'small';
         $logo = $company['logo'];
-        $company['logo'] = $company->getImageSize($logo,$size);
+        $company['logo'] = url('storage/'.$logo);
+        $company['image'] = $company->getImageSize($logo,$size);
         $nullAttributes = ["mobile_phone","website_url","horario","facebook","instagram","twitter"];
         foreach($nullAttributes as $attribute){
             if($company->{$attribute} == null){
