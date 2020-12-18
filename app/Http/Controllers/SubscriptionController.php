@@ -12,6 +12,7 @@ use App\PaymentPlan;
 use App\NmiClient;
 use App\Transaction;
 use App\PaymentTocken;
+use App\BankTransferRequest;
 use Fahim\PaypalIPN\PaypalIPNListener;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -130,14 +131,22 @@ class SubscriptionController extends Controller
         }
         $subscription = Subscription::find($id);
         if($subscription->customer_id == $user->customer->id){
-            $paymentPlan = PaymentPlan::createOrUpdate($subscription->plan, $subscription->customer_id, $subscription->coupon, $frequency,'nmi');
-            $paymentSubscription = new PaymentSubscription;
-            if($subscription->end_date!=null){
-                $subscription->end_date=null;
-                $subscription->save();
+            switch($subscription->gateway){
+                case 'nmi':
+                    $paymentPlan = PaymentPlan::createOrUpdate($subscription->plan, $subscription->customer_id, $subscription->coupon, $frequency,'nmi');
+                    $paymentSubscription = new PaymentSubscription;
+                    if($subscription->end_date!=null){
+                        $subscription->end_date=null;
+                        $subscription->save();
+                    }
+                    list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan);
+                    return response()->json(['status' => 'success', 'now' => $now]);
+                break;
+                case 'bank':
+                    return response()->json(['status' => 'failed', 'errors'=>'bank gateway'],404);
+                break;
+                default:
             }
-            list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan);
-            return response()->json(['status' => 'success', 'now' => $now]);
         }else{
             return response()->json(['status' => 'failed', 'errors'=>'customer is wrong'],422);
         }
@@ -240,7 +249,15 @@ class SubscriptionController extends Controller
         }else{
             list($now, $status,$errors, $code) = $this->paidPurchase($request);
         }
-        if($code == 200) return response()->json(['status' => 'ok', 'now' => $now]);
+        if($code == 200) {
+            $user = $request->user('api');
+            $bankTransferRequest  = BankTransferRequest::whereCustomerId($user->customer->id)->whereStatus('Pending')->first();
+            if($bankTransferRequest){
+                $bankTransferRequest->status = 'Declined';
+                $bankTransferRequest->save();
+            }
+            return response()->json(['status' => 'ok', 'now' => $now]);
+        }
         else return response()->json(['status' => $status, 'now' => $now,'errors'=>$errors], $code);
     }
     public function findPaypalPlan(Request $request)

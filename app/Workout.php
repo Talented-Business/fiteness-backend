@@ -92,7 +92,7 @@ class Workout extends Model
                 date('Y-m-d', strtotime('sunday this week', strtotime($date))),
             ];
         }
-        $columns  = ['comentario','image_path','blog','blog_timer_type','blog_timer_work','blog_timer_round','blog_timer_rest'];
+        $columns  = ['comentario','image_path','blog','blog_timer_type','blog_timer_work','blog_timer_round','blog_timer_rest','blog_timer_description'];
         $primaryColumns = ['calentamiento','con_content', 'sin_content', 'strong_male', 'strong_female', 'fit', 'cardio','extra_sin', 'activo'];
         foreach($primaryColumns as $column){
             $columns[] = $column;
@@ -101,6 +101,7 @@ class Workout extends Model
             $columns[] = $column.'_timer_work';
             $columns[] = $column.'_timer_round';
             $columns[] = $column.'_timer_rest';
+            $columns[] = $column.'_timer_description';
         }
         $result = Workout::whereIn('publish_date', $week)->get();
         $workouts = [];
@@ -158,9 +159,10 @@ class Workout extends Model
             $workout->{$column.'_timer_work'} = $request->input('timer_work');
             if($request->exists('timer_round'))$workout->{$column.'_timer_round'} = $request->input('timer_round');
             if($request->exists('timer_rest'))$workout->{$column.'_timer_rest'} = $request->input('timer_rest');
+            if($request->exists('timer_description'))$workout->{$column.'_timer_description'} = $request->input('timer_description');
         }
         $workout->save();
-        if($column == 'comentario' && $request->hasFile('image')&&$request->file('image')->isValid()){ 
+        if(($column == 'comentario' || $column == 'blog') && $request->hasFile('image')&&$request->file('image')->isValid()){ 
             $fileName = $workout->id . '.' . $request->file('image')->extension();
             $basePath = 'media/workout/' . date('Y');
             $request->file('image')->storeAs($basePath, $fileName);
@@ -175,6 +177,8 @@ class Workout extends Model
         $date = date('Y-m-d', strtotime($request->input('date')));
         $column = $request->input('column');
         $workout = Workout::where('publish_date', '=', $date)->first();
+        $title = self::getTitleFromColumn($column);
+        if($title)$workout[$column] = "{h2}$title{/h2}".$workout[$column];
         $content = self::replace($workout[$column],null);
         $whatsapp = self::replaceWhatsapp($workout[$column]);
         return ['content' => $content, 'whatsapp' => $whatsapp];

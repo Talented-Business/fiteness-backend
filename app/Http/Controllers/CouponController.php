@@ -4,10 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Coupon;
+use App\CouponEmail;
 use App\User;
 use App\Customer;
 use App\Setting;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Mail;
+use App\Mail\CouponInvitationEmail;
+
 
 class CouponController extends Controller
 {
@@ -17,11 +22,23 @@ class CouponController extends Controller
         if($user->can('coupons')){
             $validator = Validator::make($request->all(), Coupon::validateRules());
             if ($validator->fails()) {
-                return response()->json(array('status'=>'failed','errors'=>$validator->errors()));
+                return response()->json(array('status'=>'failed','errors'=>$validator->errors()),422);
             }
             $coupon = new Coupon;
-            $coupon->assign($request);        
+            $coupon->fill($request->all());
             $coupon->save();
+            if($coupon->type == 'InvitationEmail'){
+                if($request->email_list){
+                    $emails = explode("\n",$request->email_list);
+                    foreach($emails as $email){
+                        $validator = Validator::make(['mail'=>$email], ['mail'=>'email|max:255']);
+                        if (!$validator->fails()) {
+                            $couponEmail = CouponEmail::create(['coupon_id'=>$coupon->id,'email'=>$email]);
+                            Mail::to($email)->send(new CouponInvitationEmail($couponEmail->id,$coupon->expiration));
+                        }
+                    }
+                }
+            }
             $coupon->renewal = (int)$coupon->renewal;
             return response()->json(array('status'=>'ok','coupon'=>$coupon));
         }else{
@@ -37,7 +54,7 @@ class CouponController extends Controller
                 return response()->json(array('status'=>'failed','errors'=>$validator->errors()));
             }
             $coupon = Coupon::find($id);
-            $coupon->assign($request);
+            $coupon->fill($request->all());
             $coupon->save();
             $coupon->renewal = (int)$coupon->renewal;
             return response()->json(array('status'=>'ok','coupon'=>$coupon));
@@ -45,12 +62,15 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
-    public function show($id){
+    public function show($id,Request $request){
         $user = $request->user('api');
         if($user->can('coupons')){
             $coupon = Coupon::find($id);
             if($coupon->mail==null){
                 $coupon->mail = "";
+            }
+            if($coupon->type == "InvitationEmail"){
+                $coupon->emails = CouponEmail::whereCouponId($coupon->id)->get();
             }
             return response()->json($coupon);
         }else{
@@ -162,14 +182,33 @@ class CouponController extends Controller
     public function public(Request $request){
         $inputs = $request->input('voucher');
         $code = $inputs['code'];
-        $coupon = Coupon::whereType('Public')->whereCode($code)->whereStatus('Active')->first();
+        $coupon = Coupon::whereIn('type',['Public','InvitationCode'])->whereCode($code)->whereStatus('Active')->first();
         if($coupon){
             $coupon['token'] = $code;
             $coupon->renewal = (int)$coupon->renewal;
-            return response()->json(['voucher'=>$coupon]);
-        }else{
-            return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
+            switch($coupon->type){
+                case 'Public':
+                    return response()->json(['voucher'=>$coupon]);
+                    break;
+                case 'InvitationCode':
+                    if($coupon->max_user_count==null || $coupon->max_user_count == 0 || $coupon->max_user_count>0&&$coupon->max_user_count>$coupon->current_user_count){
+                        return response()->json(['voucher'=>$coupon]);
+                    }
+                    break;
+            }
         }
+        return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
+    }
+    public function email(Request $request){
+        $id = $request->input('id');
+        $couponEmail = CouponEmail::find($id);
+        if($couponEmail && $couponEmail->used == "no" && $couponEmail->coupon->type == "InvitationEmail"){
+            $coupon = $couponEmail->coupon;
+            $coupon['token'] = $coupon->code;
+            $coupon->renewal = (int)$coupon->renewal;
+            return response()->json(['voucher'=>$coupon]);
+        }
+        return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
     }
     public function publicWithUser(Request $request){
         $inputs = $request->input('voucher');

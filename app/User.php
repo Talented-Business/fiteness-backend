@@ -148,6 +148,12 @@ class User extends Authenticatable
                     $customer->coupon_id = $coupon->id;
                 }
             }
+            if(isset($record['invitationEmail'])){
+                $couponEmail = CouponEmail::find($record['invitationEmail']);
+                if($couponEmail && $couponEmail->used == "no"){
+                    $customer->coupon_id = $couponEmail->coupon_id;
+                }
+            }
             if($record['place'] == "Casa o Exterior")$customer->weights = "sin pesas";
             else $customer->weights = "con pesas";
             $heightValue = Height::convert($record['height'],$record['heightUnit'])/100;
@@ -156,6 +162,14 @@ class User extends Authenticatable
                 ($imc>=18.5 && $imc<25 && $record['goal']!="fit") || 
                 ($imc>=25 && $record['goal']!="cardio")) $customer->objective = $record['goal'];
             $customer->save();
+            if($customer->coupon_id){
+                if(isset($couponEmail)){
+                    $couponEmail->used = "yes";
+                    $couponEmail->customer_id = $customer->id;
+                    $couponEmail->save();
+                }
+                $customer->setFreeSubscription();
+            }
             //NotifyNonSubscriber::dispatch($customer, new \App\Mail\NotifyNonSubscriber($customer))->delay(now()->addHours(24)); //from task 1
             $adminEmails = User::adminEmail();//multi
             if(!empty($adminEmails)){
@@ -224,6 +238,7 @@ class User extends Authenticatable
                 $user->customer['nextWorkoutPlan'] = $subscription->nextWorkoutPlan();
                 $user->customer['renewalOptions'] = $subscription->renewalOptions();
                 $user->customer['currentWorkoutMonths'] = $subscription->convertMonths();
+                $user->customer['currentWorkoutPaymentType'] = $subscription->gateway;
             }else{
                 $service =Service::find(1);
                 $s = ['serviceName'=>$service->title];
@@ -269,6 +284,7 @@ class User extends Authenticatable
         if($defaultCoupon)$user['defaultCouponId'] = $defaultCoupon->id;
         if($user->customer){
             $heightValue = Height::convert($user->customer->current_height,$user->customer->current_height_unit)/100;
+            if($heightValue==0)$heightValue = Height::convert($user->customer->initial_height,$user->customer->initial_height_unit)/100;
             $user->customer['imc'] = round(Weight::convert($user->customer->current_weight,$user->customer->current_weight_unit)/$heightValue/$heightValue);
             if($user->avatar){
                 $user['avatarUrls'] = [

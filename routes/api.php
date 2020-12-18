@@ -82,6 +82,7 @@ Route::post('coupons/generateFirstPay', 'CouponController@generateFirstPay')->mi
 Route::post('coupons/private', 'CouponController@private')->middleware('auth:api');
 Route::post('coupons/subscription', 'CouponController@createRenewal')->middleware('auth:api');
 Route::post('coupons/public', 'CouponController@public');
+Route::post('coupons/email', 'CouponController@email');
 Route::post('coupons/publicWithUser', 'CouponController@publicWithUser')->middleware('auth:api');
 Route::post('coupons/referral', 'CouponController@referral');
 Route::resource('coupons', 'CouponController')->middleware('auth:api');
@@ -98,9 +99,12 @@ Route::get('subscriptions/{id}/restore', 'SubscriptionController@restore')->wher
 Route::get('subscriptions/export', 'SubscriptionController@export')->middleware('auth:api');
 Route::resource('subscriptions', 'SubscriptionController')->middleware('auth:api');
 Route::post('subscriptions/free', 'SubscriptionController@free')->middleware('auth:api');
+Route::get('shortcodes/all', 'ShortcodeController@list')->middleware('auth:api');
 Route::resource('shortcodes', 'ShortcodeController')->middleware('auth:api');
 Route::get('shortcodes/{id}/disable', 'ShortcodeController@disable')->where('id', '[0-9]+')->middleware('auth:api');
 Route::get('shortcodes/{id}/restore', 'ShortcodeController@active')->where('id', '[0-9]+')->middleware('auth:api');
+Route::get('keywords/all', 'KeywordController@list')->middleware('auth:api');
+Route::resource('keywords', 'KeywordController')->middleware('auth:api');
 Route::get('invoices/export', 'InvoiceController@export')->middleware('auth:api');
 Route::resource('invoices', 'InvoiceController')->only(['index','show'])->middleware('auth:api');
 Route::get('categories/all', 'CategoryController@all');
@@ -174,3 +178,9 @@ Route::get('products/{id}/home', 'ProductController@showFront')->where('id', '[0
 Route::get('products/{id}/download', 'ProductController@download')->where('id', '[0-9]+')->middleware('auth:api');
 Route::resource('products', 'ProductController')->middleware('auth:api');
 Route::post('deleteImageItem', 'ProductController@deleteImageItem')->middleware('auth:api');
+Route::post('bank/checkout', 'BankTransferController@checkout')->middleware('auth:api');
+Route::get('bank', 'BankTransferController@index')->middleware('auth:api');//admin
+Route::get('bank/{id}', 'BankTransferController@show')->middleware('auth:api');
+Route::post('bank/{id}/approve', 'BankTransferController@approve')->middleware('auth:api');
+Route::post('bank/{id}/reject', 'BankTransferController@reject')->middleware('auth:api');
+Route::post('bank/{id}/restore', 'BankTransferController@restore')->middleware('auth:api');

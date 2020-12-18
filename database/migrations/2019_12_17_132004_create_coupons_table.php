@@ -18,7 +18,7 @@ class CreateCouponsTable extends Migration
             $table->string('code')->unique();
             $table->string('name');
             $table->string('mail')->nullable();
-            $table->enum('type',['Public', 'Private', 'Referral'])->default('Public');
+            $table->enum('type',['Public', 'Private', 'Referral','InvitationEmail','InvitationCode'])->default('Public');
             $table->unsignedBigInteger('customer_id')->nullable();
 /*            $table->foreign('customer_id')
                 ->references('id')

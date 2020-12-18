@@ -4,12 +4,13 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
-use App\Mail\NmiVault;
-use App\Mail\SubscriptionCancel;
-use App\Mail\SubscriptionCancelAdmin;
 use Illuminate\Support\Facades\DB;
 use Mail;
 use Illuminate\Support\Facades\Log;
+use App\Mail\NmiVault;
+use App\Mail\SubscriptionCancel;
+use App\Mail\SubscriptionCancelAdmin;
+use App\Payment\Bank;
 
 class Subscription extends Model
 {
@@ -218,20 +219,31 @@ class Subscription extends Model
         $this->pageSize = $request->input('pageSize');
         $this->pageNumber = $request->input('pageNumber');
     }
-    public function nextPaymentTime()
+    public function getExpirationTime(){
+        return $this->nextPaymentTime();
+    }
+    public function nextPaymentTime() 
     {
         if($this->status == 'Cancelled'){
             return null;
         }
-        if($this->plan->type=="Free"){
+        if($this->plan && $this->plan->type=="Free"){
             $cycles = $this->plan->free_duration;
             $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$cycles day"));
             return $nextdatetime;
         }else{
             if ($this->transaction && $this->transaction->status=='Completed') {
-                $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
-                if ($paymentSubscription) {
-                    return $paymentSubscription->getEndDate($this->transaction);
+                $lastTransaction = Transaction::whereCustomerId($this->customer_id)->wherePlanId($this->plan_id)->whereStatus("Completed")->orderBy('id','desc')->first();
+                if($this->transaction_id == $lastTransaction->id){
+                    $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
+                    if ($paymentSubscription) {
+                        return $paymentSubscription->getEndDate($this->transaction);
+                    }    
+                }else if($this->transaction_id < $lastTransaction->id){
+                    $paymentSubscription = PaymentSubscription::whereSubscriptionId($lastTransaction->payment_subscription_id)->first();
+                    if ($paymentSubscription) {
+                        return $paymentSubscription->getEndDate($lastTransaction);
+                    }    
                 }
             }else{
                 $paypalPlan = PaymentPlan::wherePlanId($this->payment_plan_id)->first();
@@ -485,64 +497,78 @@ class Subscription extends Model
         }
     }
     private function scrapingFree(){
-        $paymentSubscription = PaymentSubscription::wherePlanId($this->payment_plan_id)->whereStatus('Approved')->first();
-        if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- firstProcessingWithCustomerVault Free----".($paymentSubscription == null));
-        if(strtotime($this->start_date) + $this->plan->free_duration*3600*24<time() ){
-            if($paymentSubscription)$paymentSubscription->firstProcessingWithCustomerVault($this);
-            else{
-                if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Payment subscription is null----");
+        if($this->coupon&&in_array($this->coupon->type,Coupon::INVITATION_TYPES)){
+            if($this->coupon->expiration){
+                if(strtotime($this->coupon->expiration)<time() ){
+                    $this->end_date = date("Y-m-d H:i:s");
+                    $this->status = 'Cancelled';
+                    $this->save();
+                }
             }
-        }
-        if ($this->end_date && $this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
-            $this->status = 'Cancelled';
-            $this->save();
-        }
-        if($this->status == 'Cancelled' && $paymentSubscription){
-            $paymentSubscription->status = 'Cancelled';
-            $paymentSubscription->save();
+        }else{
+            $paymentSubscription = PaymentSubscription::wherePlanId($this->payment_plan_id)->whereStatus('Approved')->first();
+            if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- firstProcessingWithCustomerVault Free----".($paymentSubscription == null));
+            if(strtotime($this->start_date) + $this->plan->free_duration*3600*24<time() ){
+                if($paymentSubscription)$paymentSubscription->firstProcessingWithCustomerVault($this);
+                else{
+                    if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Payment subscription is null----");
+                }
+            }
+            if ($this->end_date && $this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
+                $this->status = 'Cancelled';
+                $this->save();
+            }
+            if($this->status == 'Cancelled' && $paymentSubscription){
+                $paymentSubscription->status = 'Cancelled';
+                $paymentSubscription->save();
+            }
         }
     }
     private function scrapingPaid()
     {
-        $paymentSubscriptions = PaymentSubscription::whereCustomerId($this->customer_id)->orderBy('start_date', 'DESC')->get();
-        //find all payment subscriptions for every customer from now such as paypal
-        list($lastPaymentSubscription, $lastTransaction, $startDate, $endDate) = $this->findLastPaymentSubscription($paymentSubscriptions);
-        if ($lastPaymentSubscription) {
-            $this->renewalProcessing($paymentSubscriptions, $lastPaymentSubscription);
+        if($this->payment_plan_id == "bank"){
+            $this->scrapingPaidWithBank();
+        }else{
+            $paymentSubscriptions = PaymentSubscription::whereCustomerId($this->customer_id)->orderBy('start_date', 'DESC')->get();
+            //find all payment subscriptions for every customer from now such as paypal
             list($lastPaymentSubscription, $lastTransaction, $startDate, $endDate) = $this->findLastPaymentSubscription($paymentSubscriptions);
-        }
-
-        if ($lastPaymentSubscription && $lastTransaction) {
-            list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $lastPaymentSubscription->analyzeSlug();
-            if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- payment analyze slug----");
-            if ($this->transaction_id != $lastTransaction->id || $this->status == 'Pending-Cancellation' || $this->status == 'Pending') {
-                //according to last subscription, update start date and end date, status and so on.
-                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- massSave----");
-                $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $lastPaymentSubscription->plan_id, $startDate, $endDate, $lastTransaction, $lastPaymentSubscription->status);
-            } else {
-                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- last payment subscription status $lastPaymentSubscription->status ----");
-                $endDate = $lastPaymentSubscription->getEndDate();
-                $changed = false;
-                switch ($lastPaymentSubscription->status) {
-                    case 'Cancelled':
-                        if ($this->end_date === null) {
-                            $this->end_date = $this->transaction?$this->transaction->done_date:$endDate;
-                            $changed = true;
-                        }
-                        if ($this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
-                            $this->status = 'Cancelled';
-                            $changed = true;
-                        }
-                        break;
-                    case 'Active':
-                        break;    
-                }
-
-                if ($changed) {
-                    print_r('changed');
-                    $this->save();
-                }
+            if ($lastPaymentSubscription) {
+                $this->renewalProcessing($paymentSubscriptions, $lastPaymentSubscription);
+                list($lastPaymentSubscription, $lastTransaction, $startDate, $endDate) = $this->findLastPaymentSubscription($paymentSubscriptions);
             }
+
+            if ($lastPaymentSubscription && $lastTransaction) {
+                list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $lastPaymentSubscription->analyzeSlug();
+                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- payment analyze slug----");
+                if ($this->transaction_id != $lastTransaction->id || $this->status == 'Pending-Cancellation' || $this->status == 'Pending') {
+                    //according to last subscription, update start date and end date, status and so on.
+                    if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- massSave----");
+                    $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $lastPaymentSubscription->plan_id, $startDate, $endDate, $lastTransaction, $lastPaymentSubscription->status);
+                } else {
+                    if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- last payment subscription status $lastPaymentSubscription->status ----");
+                    $endDate = $lastPaymentSubscription->getEndDate();
+                    $changed = false;
+                    switch ($lastPaymentSubscription->status) {
+                        case 'Cancelled':
+                            if ($this->end_date === null) {
+                                $this->end_date = $this->transaction?$this->transaction->done_date:$endDate;
+                                $changed = true;
+                            }
+                            if ($this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
+                                $this->status = 'Cancelled';
+                                $changed = true;
+                            }
+                            break;
+                        case 'Active':
+                            break;    
+                    }
+
+                    if ($changed) {
+                        print_r('changed');
+                        $this->save();
+                    }
+                }
+            }            
         }
     }
     private function massSave($provider, $planId, $customerId, $couponId, $frequency, $paymentPlanId, $startDate, $endDate, $lastTransaction, $status)
@@ -607,41 +633,56 @@ class Subscription extends Model
     }
     private function scraping()
     {
-        //isfree
-        if ($this->plan && $this->plan->type == 'Free') {
-            /*$t1 = time();
-            $t2 = strtotime($this->end_date);
-            $diff = $t1 - $t2;
-            $hours = $diff / 3600;
-            if ($hours > 72) {
-                $coupon = Coupon::whereType('Private')->whereCustomerId($this->customer_id)->whereCode(Coupon::TRIAL_AFTER . '_' . $this->plan->service_id . '_' . $this->customer_id)->first();
-                if ($coupon === null) {
-                    $coupon = new Coupon;
-                    $coupon->generatePrivateTrialAfter($this);
+        switch($this->gateway){
+            case 'nmi':
+                if ($this->plan && $this->plan->type == 'Free') {
+                    /*$t1 = time();
+                    $t2 = strtotime($this->end_date);
+                    $diff = $t1 - $t2;
+                    $hours = $diff / 3600;
+                    if ($hours > 72) {
+                        $coupon = Coupon::whereType('Private')->whereCustomerId($this->customer_id)->whereCode(Coupon::TRIAL_AFTER . '_' . $this->plan->service_id . '_' . $this->customer_id)->first();
+                        if ($coupon === null) {
+                            $coupon = new Coupon;
+                            $coupon->generatePrivateTrialAfter($this);
+                        }
+                    } else if ($hours > -24) {
+                        $coupon = Coupon::whereType('Private')->whereCustomerId($this->customer_id)->whereCode(Coupon::TRIAL_BEFORE . '_' . $this->plan->service_id . '_' . $this->customer_id)->first();
+                        if ($coupon === null) {
+                            $coupon = new Coupon;
+                            $coupon->generatePrivateTrialBefore($this);
+                        }
+                    }
+                    if ($this->end_date < date('Y-m-d H:i:s') && $this->status == 'Active') {
+                        $this->status = 'Expired';
+                        $this->save();
+                    }*/
+                    $this->scrapingFree();
+                } else {
+                    $this->scrapingPaid($this);
                 }
-            } else if ($hours > -24) {
-                $coupon = Coupon::whereType('Private')->whereCustomerId($this->customer_id)->whereCode(Coupon::TRIAL_BEFORE . '_' . $this->plan->service_id . '_' . $this->customer_id)->first();
-                if ($coupon === null) {
-                    $coupon = new Coupon;
-                    $coupon->generatePrivateTrialBefore($this);
-                }
-            }
-            if ($this->end_date < date('Y-m-d H:i:s') && $this->status == 'Active') {
-                $this->status = 'Expired';
-                $this->save();
-            }*/
-            $this->scrapingFree();
-        } else {
-            $this->scrapingPaid();
+            break;
+            case 'bank':
+                Bank::scraping();
+            break;
         }
+        //isfree
     }
     private static function checkStatus()
     {
-        $customers = Customer::where(function ($query) {
-            $query->whereHas('user', function ($q) {
-                $q->where('active', '=', 1);
-            });
-        })->where('id',111)->get();
+        if(env('APP_ENV') == 'local'){
+            $customers = Customer::where(function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('active', '=', 1);
+                });
+            })->where('id',5763)->get();
+        }else{
+            $customers = Customer::where(function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('active', '=', 1);
+                });
+            })->get();    
+        }
         $services = Service::all();
         foreach ($services as $service) {
             foreach ($customers as $customer) { //I didn't consider service_id
@@ -794,19 +835,21 @@ class Subscription extends Model
             if ($paypalPlan) {
                 list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paypalPlan->analyzeSlug();
             }
-            switch ($frequency) {
-                case '1':
-                    return 'monthly';
-                    break;
-                case '3':
-                    return 'quarterly';
-                    break;
-                case '6':
-                    return 'semiannual';
-                    break;
-                case '12':
-                    return 'yearly';
-                    break;
+            if(isset($frequency)){
+                switch ($frequency) {
+                    case '1':
+                        return 'monthly';
+                        break;
+                    case '3':
+                        return 'quarterly';
+                        break;
+                    case '6':
+                        return 'semiannual';
+                        break;
+                    case '12':
+                        return 'yearly';
+                        break;
+                }
             }
         }
         return '';

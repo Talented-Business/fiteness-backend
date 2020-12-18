@@ -19,7 +19,7 @@ class UsersTableSeeder extends Seeder
             'type' => 'admin',
             'password' => Hash::make('demo'),
         ]);*/
-        $user = User::whereEmail('efrainz2828@outlook.com')->first();
+        $user = User::whereEmail('anagabr2008@hotmail.com')->first();
         $user->password = Hash::make('1234');
         $user->save();
     }

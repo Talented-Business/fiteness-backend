@@ -18,9 +18,11 @@ class Coupon extends Model
     const FIRST_PAY = 'renewal';
     const COUPON_URL = '/pricing?coupon=';
     const REFERRAL_URL = '/signup?referral=';
+    const EMAIL_INVITATION_URL = '/signup?ein=';
     const DEFAULT = null;
     const REFERRAL_NAME = 'referral';
-    protected $fillable = ['code','name','mail','discount','renewal','form'];
+    const INVITATION_TYPES = ['InvitationEmail','InvitationCode'];
+    protected $fillable = ['code','name','type','mail','discount','renewal','form','expiration','max_user_count'];
     private $pageSize;
     private $statuses;
     private $pageNumber;
@@ -30,9 +32,11 @@ class Coupon extends Model
             'name'=>'required|max:255',
             'mail'=>'nullable|email|max:255',
             'discount'=>'nullable|numeric|max:100',
+            'expiration'=>'nullable',
+            'max_user_count'=>'nullable|integer',
         );
     }
-    private static $searchableColumns = ['search'];
+    private static $searchableColumns = ['search','type'];
     public function customers(){
         return $this->hasMany('App\Customer');
     }
@@ -52,11 +56,20 @@ class Coupon extends Model
                 $query->orWhere('mail','like','%'.$this->search.'%');
             }
         });
+        if($this->type){
+            if($this->type == 'invitations'){
+                $where->whereIn('type',Coupon::INVITATION_TYPES);
+            }else{
+                $where->where('type',$this->type);
+            }
+        }else{
+            $where->whereIn('type',['Public']);
+        }
         $currentPage = $this->pageNumber+1;
         Paginator::currentPageResolver(function () use ($currentPage) {
             return $currentPage;
         });      
-        $response = $where->orderBy('id', 'ASC')->whereType('Public')->paginate($this->pageSize);
+        $response = $where->orderBy('id', 'ASC')->paginate($this->pageSize);
         $items = $response->items();
         foreach($items as $index=> $coupon){
             $date = explode(' ',$coupon->created_at);
@@ -225,5 +238,35 @@ class Coupon extends Model
                 Mail::to($coupon->mail)->send(new CouponReport($active,$nonActive,$total,$coupon->name,$fromDate));
             }
         }
+    }
+    public function getDiscountedAmount($amount,$partnerDiscount,$transaction=null){
+        if ($this->renewal == 1) {
+            if($this->form=='%'){
+                if( $partnerDiscount && $this->discount < $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                else $amount = round($amount * (100 - $this->discount)/100,2); 
+            }
+            else {
+                if( $partnerDiscount && $this->discount < $partnerDiscount * $amount / 100 ){
+                    $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                }else $amount = round($amount - $this->discount,2);
+                if($amount<0) $amount = 0;
+            }
+        } else {
+            if ($transaction === null) {
+                if($this->form=='%'){
+                    if( $partnerDiscount && $this->discount < $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                    else $amount = round($amount * (100 - $this->discount)/100,2); 
+                }
+                else {
+                    if( $partnerDiscount && $this->discount < $partnerDiscount * $amount / 100 ){
+                        $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                    }else $amount = round($amount - $this->discount,2);
+                    if($amount<0) $amount = 0;
+                }
+            }else{
+                if( $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);        
+            }
+        }
+        return $amount;
     }
 }

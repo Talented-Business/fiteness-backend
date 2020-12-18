@@ -73,7 +73,25 @@ class PaymentSubscription extends Model
             die;
         }
     }
-    public function createFromPlan($subscription, $paymentPlan)
+    public function createWithBank($subscription, $paymentPlan){
+        list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentPlan->analyzeSlug();
+        $this->provider = $provider;
+        $this->plan_id = $paymentPlan->plan_id;
+        $this->subscription_id = $paymentPlan->plan_id . '-' . time();
+        $this->customer_id = $customerId;
+        $startTime = $subscription->getExpirationTime();
+        if ($startTime && strtotime($startTime) > time()) {
+            $this->start_time = Subscription::convertIsoDateToString(strtotime($startTime));
+            $this->start_date = $startTime;
+        } else {
+            $this->start_time = Subscription::convertIsoDateToString(time());
+            $this->start_date = date('Y-m-d H:i:s', time());
+            $now = true;
+        }
+        $this->status = 'Active';
+        $this->save();
+    }
+    public function createFromPlan($subscription, $paymentPlan)//nmi and paypal not bank
     {
         $now = false;
         list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentPlan->analyzeSlug();
@@ -402,6 +420,10 @@ class PaymentSubscription extends Model
                     $cycles = $frequency * $paymentCycles;
                     $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($paymentSubscription->start_date)) . " +$cycles $intervalUnit"));
                 break;
+                case 'bank':
+                    $cycles = $frequency;
+                    $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($paymentSubscription->start_date)) . " +$cycles $intervalUnit"));
+                break;
             }
         }else{
             $nextdatetime = null;
@@ -417,40 +439,8 @@ class PaymentSubscription extends Model
             $subscriptionPlan = SubscriptionPlan::find($planId);
             $amount = $subscriptionPlan->{'month_' . $frequency};
             $customer = Customer::find($customerId);
-            $partnerDiscount = $customer->findPartnerDiscount();
-            if ($coupon) {
-                if ($coupon->renewal == 1) {
-                    if($coupon->form=='%'){
-                        if( $partnerDiscount && $coupon->discount < $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
-                        else $amount = round($amount * (100 - $coupon->discount)/100,2); 
-                    }
-                    else {
-                        if( $partnerDiscount && $coupon->discount < $partnerDiscount * $amount / 100 ){
-                            $amount = round($amount * (100 - $partnerDiscount)/100,2);
-                        }else $amount = round($amount - $coupon->discount,2);
-                        if($amount<0) $amount = 0;
-                    }
-                } else {
-                    $transaction = $this->findLastTransaction();
-                    if ($transaction === null) {
-                        if($coupon->form=='%'){
-                            if( $partnerDiscount && $coupon->discount < $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
-                            else $amount = round($amount * (100 - $coupon->discount)/100,2); 
-                        }
-                        else {
-                            if( $partnerDiscount && $coupon->discount < $partnerDiscount * $amount / 100 ){
-                                $amount = round($amount * (100 - $partnerDiscount)/100,2);
-                            }else $amount = round($amount - $coupon->discount,2);
-                            if($amount<0) $amount = 0;
-                        }
-                    }else{
-                        if( $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);        
-                    }
-                }
-            }else{
-                if( $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
-            }
-            return $amount;
+            $transaction = $this->findLastTransaction();
+            return $customer->getPayAmount($amount,$coupon,$transaction);
         }else{
             Log::channel('nmiPayments')->error("Error payment plan not found $this->plan_id");
         }
@@ -646,7 +636,7 @@ class PaymentSubscription extends Model
         Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
         $customer->sendFirstWorkout();
     }
-    public function sendFirstMail($transaction, $sendableFirstWorkout=true){
+    public function sendFirstMail($transaction, $sendableFirstWorkout=true, $bank=false){
         $customer = $this->customer;
         list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
         $plan = SubscriptionPlan::find($planId);
@@ -662,7 +652,7 @@ class PaymentSubscription extends Model
         $nextPaymentDate = date('d/m/Y',strtotime($paymentSubscription->getEndDate($transaction)));
         $nextPaymentTotal = $paymentSubscription->nextPaymentAmount($coupon);
         if($customer->user && $sendableFirstWorkout)SendEmail::dispatch($customer,new VerifyMail($customer->user));
-        SendEmail::dispatch($customer,new FirstPaymentNotification($customer->first_name,$frequencyString,$frequency,$amount,$transaction->total,$coupon,date('d/m/Y',strtotime($transaction->done_date)),$nextPaymentDate,$nextPaymentTotal));
+        if(!$bank)SendEmail::dispatch($customer,new FirstPaymentNotification($customer->first_name,$frequencyString,$frequency,$amount,$transaction->total,$coupon,date('d/m/Y',strtotime($transaction->done_date)),$nextPaymentDate,$nextPaymentTotal));
         if($sendableFirstWorkout)NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
         $data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer for paid'];
         Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));

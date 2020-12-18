@@ -28,6 +28,10 @@ class Transaction extends Model
     public function invoice(){
         return $this->hasOne('App\Invoice','transaction_id');
     }
+    public function scopePaid($query)
+    {
+        return $query->whereStatue('Completed')->where('total','>',0);
+    }
     public function search(){
         $where = Transaction::where(function($query){
             if($this->customer_name!=null){

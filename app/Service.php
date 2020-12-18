@@ -80,6 +80,7 @@ class Service extends Model
             $this['bank_3'] = $paid->bank_3;
             $this['bank_6'] = $paid->bank_6;
             $this['bank_12'] = $paid->bank_12;
+            $this['bank_fee'] = $paid->bank_fee;
         }
         if(isset($free)){
             $this['free_duration'] = $free->free_duration;

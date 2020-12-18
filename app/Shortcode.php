@@ -7,14 +7,20 @@ use Illuminate\Pagination\Paginator;
 
 class Shortcode extends Model
 {
-    protected $fillable = ['name','link'];    
+    protected $fillable = ['name','link','time','level','alternate_a','multipler_a','alternate_b','multipler_b','instruction'];    
     private $pageSize;
     private $pageNumber;
     private $search;
     public static function validateRules($id=null){
         return array(
             'name'=>'required|max:255|unique:shortcodes,name,'.$id,
-            'link'=>'required|max:255',
+            'link'=>'max:255',
+            'time'=>'nullable|integer',
+            'level'=>'nullable|integer',
+            'alternate_a'=>'nullable|integer',
+            'multipler_a'=>'nullable|numeric',
+            'alternate_b'=>'nullable|integer',
+            'multipler_b'=>'nullable|numeric',
         );
     }
     private static $searchableColumns = ['search'];

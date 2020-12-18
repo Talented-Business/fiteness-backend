@@ -16,6 +16,16 @@ trait WorkoutTrait
         $content = str_ireplace("{/h1}", "</h1>", $content);
         $content = str_ireplace("{h2}", "<h2>", $content);
         $content = str_ireplace("{/h2}", "</h2>", $content);
+        $lines = explode("\n",$content);
+        foreach($lines as $index=>$line){
+            if($line){
+                if(!strpos($line,"<h1>") && !strpos($line,"<h2>")){
+                    $lines[$index] = "<h2>".$line."</h2>";
+                    break;
+                }
+            }
+        }
+        $content = implode("\n",$lines);
         $shortcodes = Shortcode::where('status', '=', 'Active')->get();
         foreach ($shortcodes as $shortcode) {
             $url = env('APP_URL').'/api/customers/link?shortcode_id='.$shortcode->id;
@@ -54,7 +64,7 @@ trait WorkoutTrait
         }
         return [$content,$notes];
     }
-    private static function replaceDashboard($content){
+    private static function replaceDashboard($content,$position,$type){
         $pattern = '/\{button +[".\'](.*)[".\']\}([\s\S]*)\{\/button\}/';
         $notes = preg_match($pattern, $content,$keywords);
         if($notes){
@@ -110,6 +120,7 @@ trait WorkoutTrait
             if(isset($record->{$slug.'_timer_type'}) && $record->{$slug.'_timer_type'}){
                 $result['timer_type'] = $record->{$slug.'_timer_type'};
                 $result['timer_work'] = $record->{$slug.'_timer_work'};
+                $result['timer_description'] = $record->{$slug.'_timer_description'};
                 if($result['timer_work'] == null && in_array($result['timer_type'],['calentamiento','extra'])){
                     $result['timer_work'] = 30;
                 }
@@ -121,10 +132,44 @@ trait WorkoutTrait
         }
         return $result;
     }
+    protected static function  getTitleFromColumn($column){
+        switch($column){
+            case 'calentamiento':
+                $title = "A. Calentamiento";
+            break;
+            case 'con_content':
+                $title = "B. Workout del día";
+            break;
+            case 'sin_content':
+                $title = "B. Workout del día";
+            break;
+            case 'extra_sin':
+                $title = "C. Extra";
+            break;
+            case 'strong_male':
+                $title = "C. Extra";
+            break;
+            case 'strong_female':
+                $title = "C. Extra";
+            break;
+            case 'fit':
+                $title = "C. Extra";
+            break;
+            case 'cardio':
+                $title = "C. Extra";
+            break;
+            case 'activo':
+                $title = "B. Workout del día";
+            break;
+            default:                        
+                $title = false;
+        }
+        return $title;
+    }
     private static function findSendableContent($record,$publishDate, $workoutCondition, $weightsCondition, $objective, $gender,$customerId=null){
         $weekday = strtolower(date('l', strtotime($publishDate)));
         if (isset($workoutCondition[$weekday]) && $workoutCondition[$weekday]) {
-            $block = ['content'=>$record->comentario];
+            $block = ['content'=>$record->comentario,'slug'=>'comentario'];
             if($record->image_path)$block['image_path'] = env('APP_URL').$record->image_path;
             $blocks = [$block];
             $block = self::getNotes($record,'calentamiento');
@@ -138,10 +183,14 @@ trait WorkoutTrait
             }
             if (strpos($workoutFilter, 'Workout')!==false) {
                 if ($sinContent) {
+                    $title = self::getTitleFromColumn('sin_content');
+                    if($title)$content = $content."\n"."{h2}$title{/h2}";
                     $content = $content."\n".$record->sin_content;
                     $block = self::getNotes($record,'sin_content');
                     if($block)$blocks[] = $block;
                 } else {
+                    $title = self::getTitleFromColumn('con_content');
+                    if($title)$content = $content."\n"."{h2}$title{/h2}";
                     $content = $content."\n".$record->con_content;
                     $block = self::getNotes($record,'con_content');
                     if($block)$blocks[] = $block;
@@ -150,15 +199,18 @@ trait WorkoutTrait
             $objectKey = null;
             if ($objective == "strong") {
                 if ($gender == "Male") {
+                    $objectTitle = self::getTitleFromColumn('strong_male');
                     $objectiveContent = $record->strong_male;
                     $objectKey = "strong_male";
                 } else {
+                    $objectTitle = self::getTitleFromColumn('strong_female');
                     $objectiveContent = $record->strong_female;
                     $objectKey = "strong_female";
                 }
 
             } else {
                 if (isset($record[$objective])) {
+                    $objectTitle = self::getTitleFromColumn($objective);
                     $objectiveContent = $record[$objective];
                     $objectKey = $objective;
                 } else {
@@ -168,10 +220,13 @@ trait WorkoutTrait
             $weekday = strtolower(date('l', strtotime($publishDate)));
             if (strpos($workoutFilter, 'Extra')!==false ) {
                 if($sinContent){
+                    $title = self::getTitleFromColumn('extra_sin');
+                    if($title)$content = $content."\n"."{h2}$title{/h2}";
                     $content = $content . "\n" . $record->extra_sin;
                     $block = self::getNotes($record,'extra_sin');
                     if($block)$blocks[] = $block;
                 }else {
+                    if(isset($objectTitle) && $objectTitle)$content = $content."\n"."{h2}$objectTitle{/h2}";
                     $content = $content . "\n" . $objectiveContent;
                     if($objectKey ){
                         $block = self::getNotes($record,$objectKey);
@@ -181,6 +236,8 @@ trait WorkoutTrait
             }
 
             if (strpos($workoutFilter, 'Activo')!==false) {
+                $title = self::getTitleFromColumn('activo');
+                if($title)$content = $content."\n"."{h2}$title{/h2}";
                 $content = $content . "\n" .$record->activo;
                 $block = self::getNotes($record,'activo');
                 if($block)$blocks[] = $block;
@@ -189,7 +246,7 @@ trait WorkoutTrait
                 $blog = true;
                 if($record->blog){
                     $content = $record->blog;
-                    $blocks = [['content'=>$record->blog,'timer_type'=>$record->blog_timer_type,'timer_work'=>$record->blog_timer_work,'timer_rest'=>$record->blog_timer_rest,'timer_round'=>$record->blog_timer_round]];
+                    $blocks = [['content'=>$record->blog,'timer_type'=>$record->blog_timer_type,'timer_work'=>$record->blog_timer_work,'timer_rest'=>$record->blog_timer_rest,'timer_round'=>$record->blog_timer_round,'timer_description'=>$record->blog_timer_description,'image_path' => env('APP_URL').$record->image_path]];
                 }else{
                     $content = null;
                     $blocks = [];
@@ -209,15 +266,76 @@ trait WorkoutTrait
                 }
             }
             $whatsapp = $content;
-            $dashboard = self::replaceDashboard($content);
+            $dashboard = self::replaceDashboard($content,0,'introduce');
             foreach($blocks as $index => $block){
-                if(isset($block['content']))$blocks[$index]['content'] = self::replaceDashboard($block['content']);
-                if(isset($block['note']))$blocks[$index]['note'] = self::replaceDashboard($block['note']);
+                if(isset($block['content']) ){
+                    if(isset($block['slug'])){
+                        $title = self::getTitleFromColumn($block['slug']);
+                    }
+                    $result = self::replaceDashboard($block['content'],$index,'content');
+                    if(isset($title)){
+                        $result = array_merge([['tag'=>'h2','content'=>$title]],$result);
+                    }
+                    $blocks[$index]['content'] = $result;
+                }
+                if(isset($block['note'])){
+                    $results = array_merge([['tag'=>'h2','content'=>'Notas']],self::replaceDashboard($block['note'],$index,'note'));
+                    $blocks[$index]['note'] = $results;
+                }
             }
             $content = self::replace($content,$customerId);
             $whatsapp = self::replaceWhatsapp($whatsapp);
             if($content)return ['date' => $spanishDate,'short_date' => $spanishShortDate, 'content' => $content, 'whatsapp' => $whatsapp,'dashboard'=>$dashboard,'blog'=>$blog,'blocks'=>$blocks];
         }    
         return null;
+    }
+    public function convertContent($content){
+        $pattern = '/\{button +[".\'](.*)[".\']\}([\s\S]*)\{\/button\}/';
+        $notes = preg_match($pattern, $content,$keywords);
+        if($notes){
+            $content = str_ireplace($keywords[0], '<spectioalButton/>', $content);
+        }
+        $lines = explode("\n",$content);
+        $results = [];
+        $shortcodes = Shortcode::where('status', '=', 'Active')->get();
+        foreach($lines as $line){
+            if($notes && strpos($line,'<spectioalButton/>')!==false){
+                $line = str_ireplace("<spectioalButton/>", "&&", $line);
+                $contents = explode('&&',$line);
+                $results[] = ['tag'=>'modal','before_content'=>$contents[0],'after_content'=>$contents[1],'title'=>$keywords[1],'body'=>$keywords[2]];
+            }else if(strpos($line,'{h1}') || strpos($line,'{/h1}')){
+                $line = str_ireplace("{h1}", "", $line);
+                $line = str_ireplace("{/h1}", "", $line);
+                $results[] = ['tag'=>'h1','content'=>$line];
+            }else if(strpos($line,'{h2}') || strpos($line,'{/h2}')){
+                $line = str_ireplace("{h2}", "", $line);
+                $line = str_ireplace("{/h2}", "", $line);
+                $results[] = ['tag'=>'h2','content'=>$line];
+            }else {
+                $youtube=null;
+                $afterContent="";
+                foreach ($shortcodes as $shortcode) {
+                    if(strpos($line,"{{$shortcode->name}}")!==false){
+                        preg_match('/https:\/\/www.youtube.com\/watch\?v=(.*)/',$shortcode->link,$matches);
+                        if(isset($matches[1])){
+                            $line = str_replace("{{$shortcode->name}}", "&&", $line);
+                            $youtube=['name'=>$shortcode->name,'vid'=>$matches[1]];
+                        }
+                        else{
+                            preg_match('/https:\/\/youtu.be\/(.*)/',$shortcode->link,$matches);
+                            if(isset($matches[1])){
+                                $line = str_replace("{{$shortcode->name}}", "&&", $line);
+                                $youtube=['name'=>$shortcode->name,'vid'=>$matches[1]];
+                            }
+                        }
+                        $contents = explode('&&',$line);
+                        $line = $contents[0];
+                        $afterContent = $contents[1];
+                    }
+                }
+                if($line !== ""||$youtube!=null)$results[] = ['tag'=>'p','before_content'=>$line,'after_content'=>$afterContent,'youtube'=>$youtube];
+            }
+        }
+        return $results;
     }
 }

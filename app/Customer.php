@@ -7,6 +7,7 @@ use Illuminate\Pagination\Paginator;
 use Twilio\Rest\Client;
 use App\Jobs\SendEmail;
 use App\Exports\CustomersExport;
+use App\Payment\Bank;
 use Mail;
 
 class Customer extends Model
@@ -734,6 +735,13 @@ class Customer extends Model
         }
         $record->save();
     }
+    public function isFirstPayment($serviceId){
+        $subscription = Subscription::whereCustomerId($this->id)->first();
+        if($subscription){
+            return !Bank::isOld($subscription);
+        }
+        return true;
+    }
     public function findMedal(){
         $doneworkouts = $this->done();
         $workoutCount = $doneworkouts->count();
@@ -1079,5 +1087,43 @@ class Customer extends Model
         $objDateTime = new \DateTime('NOW');
         $objDateTime->setTimezone($userTimezone);
         return $objDateTime->format('Y-m-d');
+    }
+    public function getPayAmount($amount,$coupon,$transaction = null){
+        $partnerDiscount = $this->findPartnerDiscount();
+        if ($coupon) {
+            $amount = $coupon->getDiscountedAmount($amount,$partnerDiscount,$transaction);
+        }else{
+            if( $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
+        }
+        return $amount;
+    }
+    public function setFreeSubscription(){
+        if($this->coupon && in_array($this->coupon->type, Coupon::INVITATION_TYPES)){
+            $possibleSubscription = false;
+            switch($this->coupon->type){
+                case 'InvitationEmail':
+                    if($this->coupon){
+                        $possibleSubscription = true;
+                    }
+                break;
+                case 'InvitationCode':
+                    if($this->coupon->max_user_count&&$this->coupon->max_user_count>$this->coupon->current_user_count || $this->coupon->max_user_count==null){
+                        $this->coupon->current_user_count++;
+                        $this->coupon->save();
+                        $possibleSubscription = true;
+                    }
+                break;
+            }
+            if($possibleSubscription){
+                $subscription = new Subscription;
+                $subscription->plan_id = 1;// from service;
+                $subscription->payment_plan_id = $this->coupon->type;
+                $subscription->start_date = date("Y-m-d H:i:s");
+                $subscription->coupon_id = $this->coupon_id;
+                $subscription->gateway = 'nmi';
+                $subscription->customer_id = $this->id;
+                $subscription->save();
+            }
+        }
     }
 }

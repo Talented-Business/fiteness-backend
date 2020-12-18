@@ -19,6 +19,7 @@ use App\Jobs\NotifyNonSubscriber;
 use Mail;
 use App\Mail\VerifyMail;
 use App\Mail\SubscriptionCancelAdmin;
+use App\Mail\BankRequest;
 use App\SurveyReport;
 
 class FindTransactions extends Command
@@ -262,9 +263,47 @@ class FindTransactions extends Command
         if(false){
             $this->findActiveCustomersWithoutCreditCard();
         }
-        if(true){
+        if(false){
             $this->findTransactionsWithoutCreditCard();
         }
+        if(false){
+            $this->customerSetfreeSuscription();
+        }
+        if(true){
+            $this->bankRequest();
+        }
+        if(false){
+            $this->updateShortCodes();
+        }
+    }
+    private function updateShortCodes(){
+        $shortCodes = \App\ShortCode::whereStatus('Active')->get();
+        $ids = [];
+        foreach($shortCodes as $shortCode){
+            $ids[] = $shortCode->id;
+        }
+        foreach($shortCodes as $shortCode){
+            $alternateA = $ids[rand(0,count($ids)-1)];
+            $alternateB = $ids[rand(0,count($ids)-1)];
+            if($shortCode->id != $alternateA && $alternateA!=$alternateB && $shortCode->id != $alternateB){
+                $shortCode->alternate_a = $alternateA;
+                $shortCode->multipler_a = 2;
+                $shortCode->alternate_b = $alternateB;
+                $shortCode->multipler_b = 1.5;
+                $shortCode->save();
+            }
+        }
+    }
+    private function bankRequest(){
+        $user = User::find(5896);
+        $duration = 3;
+        $amount = "8.99";
+        $bankFee = "1.23";
+        Mail::to($user->email)->send(new BankRequest($user->customer,$duration,$amount, $bankFee));        
+    }
+    private function customerSetfreeSuscription(){
+        $customer = Customer::find(5751);
+        $customer->setFreeSubscription();
     }
     private function findTransactionsWithoutCreditCard(){
         $from = 2511;

@@ -43,6 +43,7 @@ class AuthController extends Controller
             'heightUnit'=>'required|string',
             'application_source'=>'required|string',
             'couponCode'=>'nullable',
+            'invitationEmail'=>'nullable',
         ]);
         $user = User::createCustomer($record);
         /*try{
@@ -63,7 +64,7 @@ class AuthController extends Controller
                     )->toDateTimeString(),
                 ],
                 'user' => $user
-            ], 201);
+            ], 200);
         }else{
             return response()->json([
                 'errors' => [['error'=>'api']]

@@ -19,7 +19,7 @@ class ShortcodeController extends Controller
             return response()->json(array('status'=>'failed','errors'=>$validator->errors()));
         }
         $shortcode = new Shortcode;
-        $shortcode->assign($request);        
+        $shortcode->fill($request->all());
         $shortcode->save();
         return response()->json(array('status'=>'ok','shortcode'=>$shortcode));
     }
@@ -30,14 +30,35 @@ class ShortcodeController extends Controller
             return response()->json(array('status'=>'failed','errors'=>$validator->errors()));
         }
         $shortcode = Shortcode::find($id);
-        $shortcode->assign($request);
+        $shortcode->fill($request->all());
         $shortcode->save();
         return response()->json(array('status'=>'ok','shortcode'=>$shortcode));
     }
     public function show($id){
         $shortcode = Shortcode::find($id);
-        if($shortcode->mail==null){
+        if($shortcode && $shortcode->mail==null){
             $shortcode->mail = "";
+        }
+        if($shortcode && $shortcode->alternate_a==null){
+            $shortcode->alternate_a = "";
+        }
+        if($shortcode && $shortcode->alternate_b==null){
+            $shortcode->alternate_b = "";
+        }
+        if($shortcode && $shortcode->level==null){
+            $shortcode->level = "";
+        }
+        if($shortcode && $shortcode->multipler_a==null){
+            $shortcode->multipler_a = "";
+        }
+        if($shortcode && $shortcode->multipler_b==null){
+            $shortcode->multipler_b = "";
+        }
+        if($shortcode && $shortcode->time==null){
+            $shortcode->time = "";
+        }
+        if($shortcode && $shortcode->instruction==null){
+            $shortcode->instruction = "";
         }
         return response()->json($shortcode);
     }
@@ -76,5 +97,8 @@ class ShortcodeController extends Controller
         $shortcode->save();
         return response()->json($shortcode);
     }
-
+    public function list(){
+        $shortcodes = Shortcode::whereStatus('Active')->get();
+        return response()->json($shortcodes);
+    }
 }
