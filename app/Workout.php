@@ -8,6 +8,7 @@ use Illuminate\Pagination\Paginator;
 class Workout extends Model
 {
     use WorkoutTrait;
+    const UPDATE=false;
     protected $fillable = ['content', 'strong_male', 'strong_female', 'fit', 'cardio', 'publish_date'];
     private $pageSize;
     private $statuses;
@@ -161,6 +162,9 @@ class Workout extends Model
             if($request->exists('timer_rest'))$workout->{$column.'_timer_rest'} = $request->input('timer_rest');
             if($request->exists('timer_description'))$workout->{$column.'_timer_description'} = $request->input('timer_description');
         }
+        if(Workout::UPDATE){
+            $workout->{$column.'_element'} = serialize($workout->convertContent($content));
+        }
         $workout->save();
         if(($column == 'comentario' || $column == 'blog') && $request->hasFile('image')&&$request->file('image')->isValid()){ 
             $fileName = $workout->id . '.' . $request->file('image')->extension();
@@ -178,8 +182,12 @@ class Workout extends Model
         $column = $request->input('column');
         $workout = Workout::where('publish_date', '=', $date)->first();
         $title = self::getTitleFromColumn($column);
-        if($title)$workout[$column] = "{h2}$title{/h2}".$workout[$column];
+        if($title && strpos($workout[$column],'{h2}')<0)$workout[$column] = "{h2}$title{/h2}".$workout[$column];
         $content = self::replace($workout[$column],null);
+        if(Workout::UPDATE){
+            if($workout[$column.'_element'])$content = self::convertArray(unserialize($workout[$column.'_element']),$column);
+            // $content = ["Preview"];
+        }
         $whatsapp = self::replaceWhatsapp($workout[$column]);
         return ['content' => $content, 'whatsapp' => $whatsapp];
     }
@@ -187,6 +195,9 @@ class Workout extends Model
     {
         $record = Workout::where('publish_date', '=', $publishDate)->first();
         if ($record) {
+            if(Workout::UPDATE){
+                return self::findSendableContentFromArray($record,$publishDate, $workoutCondition, $weightsCondition, $objective, $gender,$customerId);
+            }
             return self::findSendableContent($record,$publishDate, $workoutCondition, $weightsCondition, $objective, $gender,$customerId);
         }
         return null;

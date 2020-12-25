@@ -30,7 +30,7 @@ class Transaction extends Model
     }
     public function scopePaid($query)
     {
-        return $query->whereStatue('Completed')->where('total','>',0);
+        return $query->whereStatus('Completed')->where('total','>',0);
     }
     public function search(){
         $where = Transaction::where(function($query){

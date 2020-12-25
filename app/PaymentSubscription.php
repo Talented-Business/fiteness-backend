@@ -422,6 +422,9 @@ class PaymentSubscription extends Model
                 break;
                 case 'bank':
                     $cycles = $frequency;
+                    $transactions = Transaction::wherePlanId($transaction->plan_id)->whereCustomerId($transaction->customer_id)->get();
+                    $isFirstPayment = $transactions->count() == 1;
+                    if($isFirstPayment) $cycles++;
                     $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($paymentSubscription->start_date)) . " +$cycles $intervalUnit"));
                 break;
             }

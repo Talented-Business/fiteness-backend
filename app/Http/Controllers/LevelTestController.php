@@ -53,6 +53,7 @@ class LevelTestController extends Controller
                 'msg' => 'success',
             ];
             $user = $request->user('api');
+            $user->customer->changeLevel();
             return response()->json(['status'=>$levelTest]);
         } else {
             $data = [

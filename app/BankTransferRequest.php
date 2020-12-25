@@ -84,8 +84,9 @@ class BankTransferRequest extends Model
         if($this->transaction==null && $this->total>0){
             $subscription = Subscription::whereCustomerId($this->customer_id)->wherePlanId($this->plan_id)->first();
             if(!$subscription)$subscription = new Subscription;
+            $subscription->frequency = $this->frequency;
             $servicePlan = SubscriptionPlan::find($this->plan_id);            
-            $paymentPlan = PaymentPlan::createOrUpdate($servicePlan, $this->customer_id, $this->coupon, $subscription->convertMonths($this->frequency),'bank');
+            $paymentPlan = PaymentPlan::createOrUpdate($servicePlan, $this->customer_id, $this->coupon, $subscription->convertMonths(),'bank');
             $paymentSubscription = new PaymentSubscription;
             $paymentSubscription->createWithBank($subscription, $paymentPlan);
             $transaction = new Transaction;
@@ -129,6 +130,9 @@ class BankTransferRequest extends Model
             $subscription->frequency = $this->frequency;
             $subscription->meta = PaymentPlan::createSlug($servicePlan, $this->customer_id, $this->coupon, $subscription->convertMonths($this->frequency),$subscription->gateway);
             $subscription->status = 'Active';
+            $subscription->reminder_before_seven = 0;
+            $subscription->reminder_before_one = 0;
+            $subscription->reminder_after_one = 0;
             $subscription->payment_plan_id = $this->paymentPlan->plan_id;
             $subscription->save();
             if(isset($paymentSubscription))$paymentSubscription->sendFirstMail($this->transaction, true, true);

@@ -526,50 +526,46 @@ class Subscription extends Model
     }
     private function scrapingPaid()
     {
-        if($this->payment_plan_id == "bank"){
-            $this->scrapingPaidWithBank();
-        }else{
-            $paymentSubscriptions = PaymentSubscription::whereCustomerId($this->customer_id)->orderBy('start_date', 'DESC')->get();
-            //find all payment subscriptions for every customer from now such as paypal
+        $paymentSubscriptions = PaymentSubscription::whereCustomerId($this->customer_id)->orderBy('start_date', 'DESC')->get();
+        //find all payment subscriptions for every customer from now such as paypal
+        list($lastPaymentSubscription, $lastTransaction, $startDate, $endDate) = $this->findLastPaymentSubscription($paymentSubscriptions);
+        if ($lastPaymentSubscription) {
+            $this->renewalProcessing($paymentSubscriptions, $lastPaymentSubscription);
             list($lastPaymentSubscription, $lastTransaction, $startDate, $endDate) = $this->findLastPaymentSubscription($paymentSubscriptions);
-            if ($lastPaymentSubscription) {
-                $this->renewalProcessing($paymentSubscriptions, $lastPaymentSubscription);
-                list($lastPaymentSubscription, $lastTransaction, $startDate, $endDate) = $this->findLastPaymentSubscription($paymentSubscriptions);
-            }
-
-            if ($lastPaymentSubscription && $lastTransaction) {
-                list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $lastPaymentSubscription->analyzeSlug();
-                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- payment analyze slug----");
-                if ($this->transaction_id != $lastTransaction->id || $this->status == 'Pending-Cancellation' || $this->status == 'Pending') {
-                    //according to last subscription, update start date and end date, status and so on.
-                    if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- massSave----");
-                    $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $lastPaymentSubscription->plan_id, $startDate, $endDate, $lastTransaction, $lastPaymentSubscription->status);
-                } else {
-                    if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- last payment subscription status $lastPaymentSubscription->status ----");
-                    $endDate = $lastPaymentSubscription->getEndDate();
-                    $changed = false;
-                    switch ($lastPaymentSubscription->status) {
-                        case 'Cancelled':
-                            if ($this->end_date === null) {
-                                $this->end_date = $this->transaction?$this->transaction->done_date:$endDate;
-                                $changed = true;
-                            }
-                            if ($this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
-                                $this->status = 'Cancelled';
-                                $changed = true;
-                            }
-                            break;
-                        case 'Active':
-                            break;    
-                    }
-
-                    if ($changed) {
-                        print_r('changed');
-                        $this->save();
-                    }
-                }
-            }            
         }
+
+        if ($lastPaymentSubscription && $lastTransaction) {
+            list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $lastPaymentSubscription->analyzeSlug();
+            if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- payment analyze slug----");
+            if ($this->transaction_id != $lastTransaction->id || $this->status == 'Pending-Cancellation' || $this->status == 'Pending') {
+                //according to last subscription, update start date and end date, status and so on.
+                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- massSave----");
+                $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $lastPaymentSubscription->plan_id, $startDate, $endDate, $lastTransaction, $lastPaymentSubscription->status);
+            } else {
+                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- last payment subscription status $lastPaymentSubscription->status ----");
+                $endDate = $lastPaymentSubscription->getEndDate();
+                $changed = false;
+                switch ($lastPaymentSubscription->status) {
+                    case 'Cancelled':
+                        if ($this->end_date === null) {
+                            $this->end_date = $this->transaction?$this->transaction->done_date:$endDate;
+                            $changed = true;
+                        }
+                        if ($this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
+                            $this->status = 'Cancelled';
+                            $changed = true;
+                        }
+                        break;
+                    case 'Active':
+                        break;    
+                }
+
+                if ($changed) {
+                    print_r('changed');
+                    $this->save();
+                }
+            }
+        }            
     }
     private function massSave($provider, $planId, $customerId, $couponId, $frequency, $paymentPlanId, $startDate, $endDate, $lastTransaction, $status)
     {
@@ -583,7 +579,7 @@ class Subscription extends Model
                 }
                 $this->frequency = $this->findFrequency($frequency);
                 $this->payment_plan_id = $paymentPlanId;
-                $this->start_date = $startDate;
+                if($this->start_date==null)$this->start_date = $startDate;
                 //$this->end_date = $endDate;
                 if ($lastTransaction) {
                     $this->transaction_id = $lastTransaction->id;
@@ -663,7 +659,7 @@ class Subscription extends Model
                 }
             break;
             case 'bank':
-                Bank::scraping();
+                Bank::scraping($this);
             break;
         }
         //isfree

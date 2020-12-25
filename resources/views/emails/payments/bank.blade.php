@@ -21,10 +21,10 @@
 </div>
 <h3 style="color: #747474;font-weight:900;">Transferencia Bancaria</h3>
 <p style="margin-bottom:0">Banco General</p>
-<p style="margin-bottom:0">Fitemos Corp.</p>
-<p style="margin-bottom:0">Cuenta Corriente</p>
-<p style="margin-bottom:0">03-17-01-131135-6</p>
-<p style="margin-bottom:0">hola@fitemos.com</p>
+<p style="margin-bottom:0;margin-top:0;">Fitemos Corp.</p>
+<p style="margin-bottom:0;margin-top:0;">Cuenta Corriente</p>
+<p style="margin-bottom:0;margin-top:0;">03-17-01-131135-6</p>
+<p style="margin-bottom:0;margin-top:0;">hola@fitemos.com</p>
 <table  border="0">
     <tbody>
         <tr style="">

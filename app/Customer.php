@@ -506,7 +506,7 @@ class Customer extends Model
             while( $workouts['current'] == null){
                 $workout = $this->findSendableWorkout($today);
                 if($workout){
-                    $workouts['current'] = ['date'=>$workout['date'],'short_date'=>$workout['short_date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
+                    $workouts['current'] = ['date'=>$workout['date'],'short_date'=>$workout['short_date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
                     $previousDate = date('Y-m-d', strtotime('-1 days', strtotime($today)));
                     $nextDate = date('Y-m-d', strtotime('+1 days', strtotime($today)));
                 }else{
@@ -524,7 +524,7 @@ class Customer extends Model
                     }
                     $workout = $this->findSendableWorkout($today);
                     if($workout){
-                        $workouts['previous'] = ['date'=>$workout['date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
+                        $workouts['previous'] = ['date'=>$workout['date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
                     }else{
                         $today = date('Y-m-d', strtotime('-1 days', strtotime($today)));
                         $i++;
@@ -540,7 +540,7 @@ class Customer extends Model
                     }
                     $workout = $this->findSendableWorkout($today);
                     if($workout){
-                        $workouts['next'] = ['date'=>$workout['date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
+                        $workouts['next'] = ['date'=>$workout['date'],'blocks'=>$workout['blocks'],'content'=>$workout['content'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
                     }else{
                         $today = date('Y-m-d', strtotime('+1 days', strtotime($today)));
                         $i++;
@@ -595,7 +595,7 @@ class Customer extends Model
                         if(trim($sentences[$index])!=="")$sentences[$index] = "<p>".$sentences[$index]."</p>";
                     }
                     $workout['content'][0] = implode("\n",$sentences);
-                    $workouts[] = ['date'=>$workout['date'],'content'=>$workout['content'],'dashboard'=>$workout['dashboard'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
+                    $workouts[] = ['date'=>$workout['date'],'content'=>$workout['content'],'blog'=>$workout['blog'],'read'=>$this->readDone($today),'today'=>$today];
                 }
                 $today = date('Y-m-d', strtotime('-1 days', strtotime($today)));
                 $i++;
@@ -912,6 +912,7 @@ class Customer extends Model
             $reason = '';
             $feedback = '';
             $subscriptionStartDate = '';
+            $cardTypes = [];
             if($customer->user->active == 0){
                 $status = "Disabled";
             }else{
@@ -935,6 +936,9 @@ class Customer extends Model
                     $stars = $subscription->quality_level;
                     if($subscription->cancelled_radio_reason)$reason = Subscription::CANCELLED_REASONS[$subscription->cancelled_radio_reason].' '.$subscription->cancelled_radio_reason_text;
                     $feedback = $subscription->recommendation;
+                    if($subscription->gateway == 'bank'){
+                        $cardTypes[] = 'ACH';
+                    }
                 }
             }
             $record = $customer->findRecord();
@@ -947,7 +951,6 @@ class Customer extends Model
             }
             $cards = PaymentTocken::whereCustomerId($customer->id)->get();
             $cardRegistered = false;
-            $cardTypes = [];
             if(count($cards)>0){
                 $cardRegistered = true;
                 foreach($cards as $card){

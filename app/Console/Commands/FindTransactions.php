@@ -21,6 +21,10 @@ use App\Mail\VerifyMail;
 use App\Mail\SubscriptionCancelAdmin;
 use App\Mail\BankRequest;
 use App\SurveyReport;
+use App\Workout;
+use App\StaticWorkout;
+use App\Payment\Bank;
+use App\BankTransferRequest;
 
 class FindTransactions extends Command
 {
@@ -84,11 +88,6 @@ class FindTransactions extends Command
         if(false){
             $customer = Customer::find(25);
             $customer->changeCoupon(10);
-        }
-        if(false){
-            $subscription = Subscription::find(1);
-            $date = date('d/m/y',strtotime($subscription->nextPaymentTime()));   
-            print_r($date);
         }
         if(false){
             $customers = Customer::all();
@@ -194,8 +193,8 @@ class FindTransactions extends Command
                 }
             }
         }
-        if(false){
-            $customer = Customer::whereEmail('test-wl8xnqz7y@srv1.mail-tester.com')->first();
+        if(true){
+            $customer = Customer::whereEmail('degracia.jf@gmail.com')->first();
             if($customer){
                 $workout = $customer->getSendableWorkout(1);
                 if($workout){
@@ -208,7 +207,7 @@ class FindTransactions extends Command
             }
         }
         if(false){
-            $subscription = Subscription::find(5);
+            $subscription = Subscription::find(1021);
             $time = $subscription->nextPaymentTime();
             print_r($time);
         }
@@ -269,11 +268,59 @@ class FindTransactions extends Command
         if(false){
             $this->customerSetfreeSuscription();
         }
-        if(true){
+        if(false){
             $this->bankRequest();
         }
         if(false){
             $this->updateShortCodes();
+        }
+        if(false){
+            $this->updateWorkout();
+            $this->updateStaticWorkout();
+        }
+        if(false){
+            $this->bankReminder();
+        }
+    }
+    private function bankReminder(){
+        $request = BankTransferRequest::find(7);
+        $subscription = Subscription::whereCustomerId($request->customer_id)->wherePlanId($request->plan_id)->first();
+        if($subscription){
+            Bank::scrape($subscription);
+        }
+    }
+    private function updateWorkout(){
+        $workouts = Workout::all();
+        foreach($workouts as $workout){
+            if($workout->comentario)$workout->comentario_element = serialize($workout->convertContent($workout->comentario));
+            if($workout->calentamiento)$workout->calentamiento_element = serialize($workout->convertContent($workout->calentamiento));
+            if($workout->con_content)$workout->con_content_element = serialize($workout->convertContent($workout->con_content));
+            if($workout->sin_content)$workout->sin_content_element = serialize($workout->convertContent($workout->sin_content));
+            if($workout->strong_male)$workout->strong_male_element = serialize($workout->convertContent($workout->strong_male));
+            if($workout->strong_female)$workout->strong_female_element = serialize($workout->convertContent($workout->strong_female));
+            if($workout->fit)$workout->fit_element = serialize($workout->convertContent($workout->fit));
+            if($workout->cardio)$workout->cardio_element = serialize($workout->convertContent($workout->cardio));
+            if($workout->extra_sin)$workout->extra_sin_element = serialize($workout->convertContent($workout->extra_sin));
+            if($workout->activo)$workout->activo_element = serialize($workout->convertContent($workout->activo));
+            if($workout->blog)$workout->blog_element = serialize($workout->convertContent($workout->blog));
+            $workout->save();
+        }
+    }
+    private function updateStaticWorkout(){
+        $workouts = StaticWorkout::all();
+        foreach($workouts as $workout){
+            if($workout->comentario)$workout->comentario_element = serialize($workout->convertContent($workout->comentario));
+            if($workout->calentamiento)$workout->calentamiento_element = serialize($workout->convertContent($workout->calentamiento));
+            if($workout->con_content)$workout->con_content_element = serialize($workout->convertContent($workout->con_content));
+            if($workout->sin_content)$workout->sin_content_element = serialize($workout->convertContent($workout->sin_content));
+            if($workout->strong_male)$workout->strong_male_element = serialize($workout->convertContent($workout->strong_male));
+            if($workout->strong_female)$workout->strong_female_element = serialize($workout->convertContent($workout->strong_female));
+            if($workout->fit)$workout->fit_element = serialize($workout->convertContent($workout->fit));
+            if($workout->cardio)$workout->cardio_element = serialize($workout->convertContent($workout->cardio));
+            if($workout->extra_sin)$workout->extra_sin_element = serialize($workout->convertContent($workout->extra_sin));
+            if($workout->activo)$workout->activo_element = serialize($workout->convertContent($workout->activo));
+            if($workout->blog)$workout->blog_element = serialize($workout->convertContent($workout->blog));
+            $workout->save();
         }
     }
     private function updateShortCodes(){

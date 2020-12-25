@@ -126,6 +126,9 @@ class StaticWorkout extends Model
             if($request->exists('timer_rest'))$workout->{$column.'_timer_rest'} = $request->input('timer_rest');
             if($request->exists('timer_description'))$workout->{$column.'_timer_description'} = $request->input('timer_description');
         }
+        if(Workout::UPDATE){
+            $workout->{$column.'_element'} = serialize($workout->convertContent($content));
+        }
         $workout->save();
         if(($column == 'comentario' || $column == 'blog') && $request->hasFile('image')&&$request->file('image')->isValid()){ 
             $fileName = $workout->id . '.' . $request->file('image')->extension();
@@ -144,8 +147,11 @@ class StaticWorkout extends Model
         $column = $request->input('column');
         $workout = self::whereFromDate($fromDate)->whereWeekdate($weekdate)->first();
         $title = self::getTitleFromColumn($column);
-        if($title)$workout[$column] = "{h2}$title{/h2}".$workout[$column];
+        if($title && strpos($workout[$column],'{h2}')<0)$workout[$column] = "{h2}$title{/h2}".$workout[$column];
         $content = self::replace($workout[$column],null);
+        if(Workout::UPDATE){
+            if($workout[$column.'_element'])$content = self::convertArray(unserialize($workout[$column.'_element']),$column);
+        }
         $whatsapp = self::replaceWhatsapp($workout[$column]);
         return ['content' => $content, 'whatsapp' => $whatsapp];
     }

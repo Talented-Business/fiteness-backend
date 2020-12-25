@@ -14,17 +14,17 @@ class AppendAnalyseColumnsWorkoutsTable extends Migration
     public function up()
     {
         Schema::table('workouts', function (Blueprint $table) {
-            $table->string('comentario_element')->nullable();
-            $table->string('calentamiento_element')->nullable();
-            $table->string('con_content_element')->nullable();
-            $table->string('sin_content_element')->nullable();
-            $table->string('strong_male_element')->nullable();
-            $table->string('strong_female_element')->nullable();
-            $table->string('fit_element')->nullable();
-            $table->string('cardio_element')->nullable();
-            $table->string('extra_sin_element')->nullable();
-            $table->string('activo_element')->nullable();
-            $table->string('blog_element')->nullable();
+            $table->text('comentario_element')->nullable();
+            $table->text('calentamiento_element')->nullable();
+            $table->text('con_content_element')->nullable();
+            $table->text('sin_content_element')->nullable();
+            $table->text('strong_male_element')->nullable();
+            $table->text('strong_female_element')->nullable();
+            $table->text('fit_element')->nullable();
+            $table->text('cardio_element')->nullable();
+            $table->text('extra_sin_element')->nullable();
+            $table->text('activo_element')->nullable();
+            $table->text('blog_element')->nullable();
         });
     }
 

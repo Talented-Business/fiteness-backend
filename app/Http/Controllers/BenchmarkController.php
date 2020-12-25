@@ -112,7 +112,8 @@ class BenchmarkController extends Controller
         $user = $request->user('api');
         $customer_id = $user->customer->id;
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
-        $result = Benchmark::where('status','=','Publish')->where('post_date','>',$user->customer->created_at)->get();
+        // $result = Benchmark::where('status','=','Publish')->where('post_date','>',$user->customer->created_at)->get();
+        $result = Benchmark::where('status','=','Publish')->get();
         foreach($result as $index=>$item){
             if($item->image)  $item->image = url('storage/'.$item->image);
             $benchmarkResult = BenchmarkResult::where('customer_id','=',$customer_id)->where('benchmark_id','=',$item->id)->orderBy('recording_date', 'DESC')->first();
