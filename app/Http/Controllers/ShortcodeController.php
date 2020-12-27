@@ -21,6 +21,10 @@ class ShortcodeController extends Controller
         $shortcode = new Shortcode;
         $shortcode->fill($request->all());
         $shortcode->save();
+        if($request->hasFile('video')&&$request->file('video')->isValid()){ 
+            $shortcode->uploadVideo($request->file('video'));
+            $shortcode->save();
+        }        
         return response()->json(array('status'=>'ok','shortcode'=>$shortcode));
     }
     public function update($id,Request $request)
@@ -31,6 +35,9 @@ class ShortcodeController extends Controller
         }
         $shortcode = Shortcode::find($id);
         $shortcode->fill($request->all());
+        if($request->hasFile('video')&&$request->file('video')->isValid()){
+            $shortcode->uploadVideo($request->file('video'));
+        }
         $shortcode->save();
         return response()->json(array('status'=>'ok','shortcode'=>$shortcode));
     }
@@ -100,5 +107,9 @@ class ShortcodeController extends Controller
     public function list(){
         $shortcodes = Shortcode::whereStatus('Active')->get();
         return response()->json($shortcodes);
+    }
+    public function getSize(){
+        $shortcode = new Shortcode;
+        return response()->json($shortcode->getMaximumFileUploadSize());
     }
 }

@@ -19,6 +19,7 @@ use App\PaymentTocken;
 use App\PaymentSubscription;
 use App\Transaction;
 use App\Setting;
+use App\CustomerShortcode;
 use Maatwebsite\Excel\Facades\Excel;
 
 class CustomerController extends Controller
@@ -345,5 +346,16 @@ class CustomerController extends Controller
             if($paymentToken)return response()->json(['number'=>$paymentToken->last4]);
         }
         return response()->json(['number'=>false]);
+    }
+    public function alternateShortcode(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            $customerShortcode = CustomerShortcode::updateOrCreate(
+                ['customer_id' => $user->customer->id, 'shortcode_id' => $request->shortcode_id],
+                ['alternate_id' => $request->alternate_id]
+            );
+            return response()->json(['item'=>$customerShortcode]);
+        }
+        return response()->json(['status'=>false],401);
     }
 }

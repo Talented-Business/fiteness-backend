@@ -17,6 +17,7 @@ class Shortcode extends Model
             'link'=>'max:255',
             'time'=>'nullable|integer',
             'level'=>'nullable|integer',
+            'video'=>'mimetypes:video/x-m4v,video/mp4,video/3gpp',
             'alternate_a'=>'nullable|integer',
             'multipler_a'=>'nullable|numeric',
             'alternate_b'=>'nullable|integer',
@@ -78,4 +79,53 @@ class Shortcode extends Model
         }
         return $results;
     }
+    public function uploadVideo($file){
+        $year = date("Y");
+        $month = date("m");    
+        $fileExtension = $file->extension();
+        $videoPath = 'shortcodes/'.$year.'/'.$month;
+        $filename = $videoPath.'/'.$this->id.'.'.$fileExtension;
+        $path = $file->storeAs('', #$path
+        $filename, #$fileName
+        ['disk'=>'s3', 'visibility'=>'public']);
+        $this->video_url = \Storage::disk('s3')->url($path);
+    }
+    public function getMaximumFileUploadSize()  
+    {  
+        return min($this->convertPHPSizeToBytes(ini_get('post_max_size')), $this->convertPHPSizeToBytes(ini_get('upload_max_filesize')));  
+    }  
+    
+    /**
+    * This function transforms the php.ini notation for numbers (like '2M') to an integer (2*1024*1024 in this case)
+    * 
+    * @param string $sSize
+    * @return integer The value in bytes
+    */
+    private function convertPHPSizeToBytes($sSize)
+    {
+        //
+        $sSuffix = strtoupper(substr($sSize, -1));
+        if (!in_array($sSuffix,array('P','T','G','M','K'))){
+            return (int)$sSize;  
+        } 
+        $iValue = substr($sSize, 0, -1);
+        switch ($sSuffix) {
+            case 'P':
+                $iValue *= 1024;
+                // Fallthrough intended
+            case 'T':
+                $iValue *= 1024;
+                // Fallthrough intended
+            case 'G':
+                $iValue *= 1024;
+                // Fallthrough intended
+            case 'M':
+                $iValue *= 1024;
+                // Fallthrough intended
+            case 'K':
+                $iValue *= 1024;
+                break;
+        }
+        return (int)$iValue;
+    }    
 }

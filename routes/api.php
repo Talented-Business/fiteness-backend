@@ -73,6 +73,7 @@ Route::get('customers/referral', 'CustomerController@referral')->middleware('aut
 Route::get('customers/partners', 'CustomerController@partners')->middleware('auth:api');
 Route::post('customers/trigger-workout', 'CustomerController@triggerWorkout')->middleware('auth:api');
 Route::post('customers/trigger-notifiable', 'CustomerController@triggerNotifiable')->middleware('auth:api');
+Route::post('customers/alternate-shortcode', 'CustomerController@alternateShortcode')->middleware('auth:api');
 Route::resource('customers', 'CustomerController')->middleware('auth:api');
 Route::get('transactions/export', 'TransactionController@export')->middleware('auth:api');
 Route::get('transactions/{id}/log', 'TransactionController@log')->where('id', '[0-9]+')->middleware('auth:api');
@@ -99,6 +100,7 @@ Route::get('subscriptions/{id}/restore', 'SubscriptionController@restore')->wher
 Route::get('subscriptions/export', 'SubscriptionController@export')->middleware('auth:api');
 Route::resource('subscriptions', 'SubscriptionController')->middleware('auth:api');
 Route::post('subscriptions/free', 'SubscriptionController@free')->middleware('auth:api');
+Route::get('shortcodes/get-size', 'ShortcodeController@getSize');
 Route::get('shortcodes/all', 'ShortcodeController@list')->middleware('auth:api');
 Route::resource('shortcodes', 'ShortcodeController')->middleware('auth:api');
 Route::get('shortcodes/{id}/disable', 'ShortcodeController@disable')->where('id', '[0-9]+')->middleware('auth:api');

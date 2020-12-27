@@ -8,7 +8,7 @@ use Illuminate\Pagination\Paginator;
 class Workout extends Model
 {
     use WorkoutTrait;
-    const UPDATE=false;
+    const UPDATE=true;
     protected $fillable = ['content', 'strong_male', 'strong_female', 'fit', 'cardio', 'publish_date'];
     private $pageSize;
     private $statuses;

@@ -130,12 +130,15 @@ trait WorkoutTrait
                 else $lines = unserialize($record->{$slug.'_element'});
                 if(isset($lines[0]) && $lines[0]['tag']!="h2"){
                     $title = self::getTitleFromColumn($slug);
-                    $lines = array_merge([['tag'=>'h2','content'=>$title]],$lines);
+                    if($title)$lines = array_merge([['tag'=>'h2','content'=>$title]],$lines);
                 }
                 foreach($lines as $index=>$line){
+                    if(isset($line['video']) && $line['video']['id']){
+                        $lines[$index]['video'] = self::findShortcode($line['video']['id'],$customerId);
+                    }
                     if(isset($line['before_content']) ){
                         if(is_array($line['before_content'])){
-                            if(isset($customer))$line['before_content']['content'] = str_ireplace("{name}", $customer->first_name, $line['before_content']['content']);                        
+                            if(isset($customer))$line['before_content']['content'] = str_ireplace("{name}", $customer->first_name, $line['before_content']['content']);
                             $lines[$index]['before_content'] = str_replace("@@multipler@@", $line['before_content']['multipler'],$line['before_content']['content']);
                         }else{
                             if(isset($customer))$lines[$index]['before_content'] = str_ireplace("{name}", $customer->first_name, $line['before_content']);
@@ -151,44 +154,6 @@ trait WorkoutTrait
                     } 
                     if(isset($line['content'])){
                         if(isset($customer))$lines[$index]['content'] = str_ireplace("{name}", $customer->first_name, $line['content']);
-                    }
-                    if(isset($line['video']) && $line['video']['id']){
-                        $shortcode = ShortCode::find($line['video']['id']);
-                        $lines[$index]['video']=[
-                            'name'=>$shortcode->name,
-                            'id'=>$shortcode->id,
-                            'url'=>$shortcode->video_url,
-                            'time'=>$shortcode->time,
-                            'level'=>$shortcode->level,
-                            'instruction'=>$shortcode->instruction,
-                            'alternate_a'=>null,
-                            'multipler_a'=>$shortcode->multipler_a,
-                            'alternate_b'=>null,
-                            'multipler_b'=>$shortcode->multipler_b,
-                        ];
-                        if($shortcode->alternate_a){
-                            $alternativeA = Shortcode::find($shortcode->alternate_a);
-                            $lines[$index]['video']['alternate_a'] = [
-                                'name'=>$alternativeA->name,
-                                'id'=>$alternativeA->id,
-                                'instruction'=>$alternativeA->instruction,
-                                'url'=>$alternativeA->video_url,
-                                'time'=>$alternativeA->time,
-                                'level'=>$alternativeA->level,    
-                            ];
-                        }
-                        if($shortcode->alternate_b){
-                            $alternativeB = Shortcode::find($shortcode->alternate_b);
-                            $lines[$index]['video']['alternate_b'] = [
-                                'name'=>$alternativeB->name,
-                                'id'=>$alternativeB->id,
-                                'instruction'=>$alternativeB->instruction,
-                                'url'=>$alternativeB->video_url,
-                                'time'=>$alternativeB->time,
-                                'level'=>$alternativeB->level,    
-                            ];
-                        }
-
                     }
                 }
                 $result = ['content'=>$lines,'slug'=>$slug];
@@ -373,7 +338,10 @@ trait WorkoutTrait
                     $blocks[$index]['content'] = $result;
                 }
                 if(isset($block['note'])){
-                    $results = array_merge([['tag'=>'h2','content'=>'Notas']],self::replaceDashboard($block['note'],$index,'note'));
+                    $results = self::replaceDashboard($block['note'],$index,'note');
+                    if(isset($result[0]['tag']) && $result[0]['tag'] != 'h2'){
+                        $results = array_merge([['tag'=>'h2','content'=>'Notas']],$results);
+                    }
                     $blocks[$index]['note'] = $results;
                 }
             }
@@ -623,5 +591,110 @@ trait WorkoutTrait
             if($content)return ['date' => $spanishDate,'short_date' => $spanishShortDate, 'content' => $content,'blog'=>$blog,'blocks'=>$blocks];
         }    
         return null;
+    }
+    private static function findShortcode($shortcodeId, $customerId){
+        $shortcode = ShortCode::find($shortcodeId);
+        $video=[
+            'name'=>$shortcode->name,
+            'id'=>$shortcode->id,
+            'url'=>$shortcode->video_url,
+            'time'=>$shortcode->time,
+            'level'=>$shortcode->level,
+            'instruction'=>$shortcode->instruction,
+            'alternate_a'=>null,
+            'multipler_a'=>$shortcode->multipler_a,
+            'alternate_b'=>null,
+            'multipler_b'=>$shortcode->multipler_b,
+            'multipler'=>1,
+        ];
+        if($shortcode->alternate_a){
+            $alternativeA = Shortcode::find($shortcode->alternate_a);
+            $video['alternate_a'] = [
+                'name'=>$alternativeA->name,
+                'id'=>$alternativeA->id,
+                'instruction'=>$alternativeA->instruction,
+                'url'=>$alternativeA->video_url,
+                'time'=>$alternativeA->time,
+                'level'=>$alternativeA->level,    
+            ];
+        }
+        if($shortcode->alternate_b){
+            $alternativeB = Shortcode::find($shortcode->alternate_b);
+            $video['alternate_b'] = [
+                'name'=>$alternativeB->name,
+                'id'=>$alternativeB->id,
+                'instruction'=>$alternativeB->instruction,
+                'url'=>$alternativeB->video_url,
+                'time'=>$alternativeB->time,
+                'level'=>$alternativeB->level,    
+            ];
+        }
+        if($customerId ){
+            $customerShortcode = CustomerShortcode::whereCustomerId($customerId)->whereShortcodeId($shortcodeId)->first();
+            $change = false;
+            if($customerShortcode){
+                if($customerShortcode->alternate_id != $shortcodeId){
+                    $diffDates = (time() - strtotime($customerShortcode->created_at->format('Y-m-d H:i:s')))/3600/24;
+                    if($diffDates<$customerShortcode->alternate->time){
+                        if($customerShortcode->alternate_id == $shortcode->alternate_a)$change = "a";
+                        if($customerShortcode->alternate_id == $shortcode->alternate_b)$change = "b";
+                    }
+                }
+            }
+            if(!$change){
+                $customer = Customer::find($customerId);
+                if($shortcode->level > $customer->current_condition){
+                    if($alternativeA->level == $customer->current_condition){
+                        $change = "a";
+                    }
+                    if($alternativeB->level == $customer->current_condition){
+                        $change = "b";
+                    }
+                }
+            }
+            if($change){
+                if($change = "a"){
+                    $video['name']=$alternativeA->name;
+                    $video['id']=$alternativeA->id;
+                    $video['url']=$alternativeA->video_url;
+                    $video['time']=$alternativeA->time;
+                    $video['level']=$alternativeA->level;
+                    $video['instruction']=$alternativeA->instruction;
+                    $video['alternate_a'] = [
+                        'name'=>$shortcode->name,
+                        'id'=>$shortcode->id,
+                        'instruction'=>$shortcode->instruction,
+                        'url'=>$shortcode->video_url,
+                        'time'=>$shortcode->time,
+                        'level'=>$shortcode->level,    
+                    ];
+                    if($shortcode->multipler_a){
+                        $video['multipler'] = 1/$shortcode->multipler_a;
+                        $video['multipler_a'] = 1;
+                    }
+                }
+                if($change = "b"){
+                    $video['name']=$alternativeB->name;
+                    $video['id']=$alternativeB->id;
+                    $video['url']=$alternativeB->video_url;
+                    $video['time']=$alternativeB->time;
+                    $video['level']=$alternativeB->level;
+                    $video['instruction']=$alternativeB->instruction;
+                    $video['alternate_b'] = [
+                        'name'=>$shortcode->name,
+                        'id'=>$shortcode->id,
+                        'instruction'=>$shortcode->instruction,
+                        'url'=>$shortcode->video_url,
+                        'time'=>$shortcode->time,
+                        'level'=>$shortcode->level,    
+                    ];
+                    if($shortcode->alternate_b){
+                        $video['multipler'] = 1/$shortcode->alternate_b;
+                        $video['multipler_b'] = 1;
+                    }
+                }
+            }
+        }
+        return $video;
     }
 }
