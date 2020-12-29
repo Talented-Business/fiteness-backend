@@ -17,7 +17,7 @@ class Shortcode extends Model
             'link'=>'max:255',
             'time'=>'nullable|integer',
             'level'=>'nullable|integer',
-            'video'=>'mimetypes:video/x-m4v,video/mp4,video/3gpp',
+            'video'=>'mimetypes:video/x-m4v,video/mp4,video/3gpp,video/quicktime',
             'alternate_a'=>'nullable|integer',
             'multipler_a'=>'nullable|numeric',
             'alternate_b'=>'nullable|integer',

@@ -161,6 +161,9 @@ class StaticWorkout extends Model
         $weekdate = self::convertWeekDate($weekdate);
         $record = self::whereFromDate($fromDate)->whereWeekdate($weekdate)->first();
         if ($record) {
+            if(Workout::UPDATE){
+                return self::findSendableContentFromArray($record,$publishDate, $workoutCondition, $weightsCondition, $objective, $gender,$customerId);
+            }
             return self::findSendableContent($record,$publishDate, $workoutCondition, $weightsCondition, $objective, $gender,$customerId);
         }
         return null;

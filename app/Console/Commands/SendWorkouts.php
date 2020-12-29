@@ -46,7 +46,7 @@ class SendWorkouts extends Command
         if(count($customers)>0){
             $customerList = [];
             foreach($customers as $customer){
-                if($customer->hasActiveSubscription() && $customer->country_code=='PA'){
+                if($customer->hasActiveSubscription() && $customer->country_code=='pa' && $customer->id == 3){
                     $userTimezone = new \DateTimeZone($customer->timezone);
                     $objDateTime = new \DateTime('NOW');
                     $objDateTime->setTimezone($userTimezone);
@@ -57,9 +57,10 @@ class SendWorkouts extends Command
                     break;
                 }
             }
-            foreach($customerList as $customer){
+            foreach($customerList as $customer){var_dump($customer->id);
                 $workout = $customer->getSendableWorkout(1);
                 if($workout){
+                    var_dump($workout['content']);
                     try{
                         $customer->send($workout);
                     }catch(\Exception $e){

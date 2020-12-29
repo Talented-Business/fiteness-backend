@@ -16,7 +16,7 @@ class ShortcodeController extends Controller
     {
         $validator = Validator::make($request->all(), Shortcode::validateRules());
         if ($validator->fails()) {
-            return response()->json(array('status'=>'failed','errors'=>$validator->errors()));
+            return response()->json(array('status'=>'failed','errors'=>$validator->errors()),422);
         }
         $shortcode = new Shortcode;
         $shortcode->fill($request->all());
@@ -31,7 +31,7 @@ class ShortcodeController extends Controller
     {
         $validator = Validator::make($request->all(), Shortcode::validateRules($id));
         if ($validator->fails()) {
-            return response()->json(array('status'=>'failed','errors'=>$validator->errors()));
+            return response()->json(array('status'=>'failed','errors'=>$validator->errors()),422);
         }
         $shortcode = Shortcode::find($id);
         $shortcode->fill($request->all());

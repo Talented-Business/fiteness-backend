@@ -269,7 +269,7 @@ class CustomerController extends Controller
             $shortcode = Shortcode::find($request->input('shortcode_id'));
             if($shortcode){
                 $exist = true;
-                $redirectLink = $shortcode->link;
+                $redirectLink = $shortcode->url;
             }
         }
         if(!$exist)$redirectLink = 'https://youtu.be/qcQJi0wb2Dg';

@@ -193,7 +193,7 @@ class FindTransactions extends Command
                 }
             }
         }
-        if(true){
+        if(false){
             $customer = Customer::whereEmail('degracia.jf@gmail.com')->first();
             if($customer){
                 $workout = $customer->getSendableWorkout(1);
@@ -274,8 +274,8 @@ class FindTransactions extends Command
         if(false){
             $this->updateShortCodes();
         }
-        if(false){
-            $this->updateWorkout();
+        if(true){
+            // $this->updateWorkout();
             $this->updateStaticWorkout();
         }
         if(false){
