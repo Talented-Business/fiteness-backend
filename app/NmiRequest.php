@@ -212,7 +212,9 @@ class NmiRequest {
      */
     protected function _sendRequest() {
         if($this->_sandbox){
-            if($this->type=='sale') $response = "response=1&responsetext=Approved&authcode=00".rand(1000,9999)."&transactionid=".time().rand(10,99)."&avsresponse=&cvvresponse=&orderid=".$this->_post_fields['orderid']."&type=sale&response_code=100&customer_vault_id=".$this->_post_fields['customer_vault_id'];
+            // if($this->type=='sale') $response = "response=1&responsetext=Approved&authcode=00".rand(1000,9999)."&transactionid=".time().rand(10,99)."&avsresponse=&cvvresponse=&orderid=".$this->_post_fields['orderid']."&type=sale&response_code=100&customer_vault_id=".$this->_post_fields['customer_vault_id'];
+            // else  $response = "response=1&responsetext=Approved&authcode=00".rand(1000,9999)."&transactionid=".time().rand(10,99)."&avsresponse=&cvvresponse=M&orderid=&type=validate&response_code=100&customer_vault_id=".time();
+            if($this->type=='sale') $response = "response=2&responsetext=Insufficient funds&authcode=&transactionid=5780958322&avsresponse=&cvvresponse=&orderid=4251&type=sale&response_code=202&customer_vault_id=1535325496";
             else  $response = "response=1&responsetext=Approved&authcode=00".rand(1000,9999)."&transactionid=".time().rand(10,99)."&avsresponse=&cvvresponse=M&orderid=&type=validate&response_code=100&customer_vault_id=".time();
             return $this->_handleResponse( $response );
         }

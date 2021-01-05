@@ -34,13 +34,14 @@ class Workout extends Mailable
      */
     public function build()
     {
-        $subject = "Workout del ".$this->publishDate;
+        $subject = "Fitemos ".$this->publishDate;
         if($this->blog)$subject = "Contenido del ".$this->publishDate;
-        $sentences = explode("\n",$this->content[0]);
-        foreach($sentences as $index=>$sentence){
-            if(trim($sentences[$index])!=="")$sentences[$index] = "<p>".$sentences[$index]."</p>";
-        }
-        $this->content[0] = implode("\n",$sentences);
+        $subject = $this->publishDate;
+        // $sentences = explode("\n",$this->content[0]);
+        // foreach($sentences as $index=>$sentence){
+        //     if(trim($sentences[$index])!=="")$sentences[$index] = "<p>".$sentences[$index]."</p>";
+        // }
+        // $this->content[0] = implode("\n",$sentences);
         return $this->subject($subject)->view('emails.workouts.send');
     }
 }

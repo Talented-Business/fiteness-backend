@@ -7,6 +7,7 @@ use App\Subscription;
 use App\PaymentSubscription;
 use App\Transaction;
 use App\Customer;
+use App\Coupon;
 use App\Record;
 use App\User;
 use App\Setting;
@@ -18,6 +19,12 @@ use App\Jobs\NotifyNonSubscriber;
 use Mail;
 use App\Mail\VerifyMail;
 use App\Mail\SubscriptionCancelAdmin;
+use App\Mail\BankRequest;
+use App\SurveyReport;
+use App\Workout;
+use App\StaticWorkout;
+use App\Payment\Bank;
+use App\BankTransferRequest;
 
 class FindTransactions extends Command
 {
@@ -68,9 +75,9 @@ class FindTransactions extends Command
             if($paymentSubscription)$paymentSubscription->renewalSendMail($transaction);
         }
         if(false){
-            $transaction = Transaction::find(87);
+            $transaction = Transaction::find(1452);
             $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
-            if($paymentSubscription)$paymentSubscription->firstSendMail($transaction);
+            if($paymentSubscription)$paymentSubscription->sendFirstMail($transaction);
         }
         if(false){
             $email = "sui201837@gmail.com";
@@ -81,11 +88,6 @@ class FindTransactions extends Command
         if(false){
             $customer = Customer::find(25);
             $customer->changeCoupon(10);
-        }
-        if(false){
-            $subscription = Subscription::find(1);
-            $date = date('d/m/y',strtotime($subscription->nextPaymentTime()));   
-            print_r($date);
         }
         if(false){
             $customers = Customer::all();
@@ -192,7 +194,7 @@ class FindTransactions extends Command
             }
         }
         if(false){
-            $customer = Customer::whereEmail('test-wl8xnqz7y@srv1.mail-tester.com')->first();
+            $customer = Customer::whereEmail('degracia.jf@gmail.com')->first();
             if($customer){
                 $workout = $customer->getSendableWorkout(1);
                 if($workout){
@@ -205,7 +207,7 @@ class FindTransactions extends Command
             }
         }
         if(false){
-            $subscription = Subscription::find(5);
+            $subscription = Subscription::find(1021);
             $time = $subscription->nextPaymentTime();
             print_r($time);
         }
@@ -222,14 +224,212 @@ class FindTransactions extends Command
                 $transaction = Transaction::whereCustomerId($id)->first();
                 $paymentSubscription = PaymentSubscription::whereCustomerId($id)->first();
                 $now = $paymentSubscription->updateSubscription($transaction);
-                $paymentSubscription->firstSendMail($transaction);
+                $paymentSubscription->sendFirstMail($transaction);
             }
         }
-        if(true){
+        if(false){
             $paymentSubscription = PaymentSubscription::whereSubscriptionId("nmi-2-3194-1-6-1588793005")->first();
             var_dump(method_exists($paymentSubscription,'cancelChangedPaymentSubscriptions'));
             $paymentSubscription->cancelChangedPaymentSubscriptions();
         }
+        if(false){
+            $this->sendFirstFreeEmail();
+        }
+        if(false){
+            $this->payFreeFirst();
+        }
+        if(false){
+            $this->setFriend();
+        }
+        if(false){
+            $this->removeFriend();
+        }
+        if(false){
+            $this->nextPaymentAmount();
+        }
+        if(false){
+            $this->currentWorkoutPeriod();
+        }
+        if(false){
+            $this->getImageSizes();
+        }
+        if(false){
+            $this->surveyExport();
+        }
+        if(false){
+            $this->loginActivity();
+        }
+        if(false){
+            $this->findActiveCustomersWithoutCreditCard();
+        }
+        if(false){
+            $this->findTransactionsWithoutCreditCard();
+        }
+        if(false){
+            $this->customerSetfreeSuscription();
+        }
+        if(false){
+            $this->bankRequest();
+        }
+        if(false){
+            $this->updateShortCodes();
+        }
+        if(true){
+            // $this->updateWorkout();
+            $this->updateStaticWorkout();
+        }
+        if(false){
+            $this->bankReminder();
+        }
+    }
+    private function bankReminder(){
+        $request = BankTransferRequest::find(7);
+        $subscription = Subscription::whereCustomerId($request->customer_id)->wherePlanId($request->plan_id)->first();
+        if($subscription){
+            Bank::scraping($subscription);
+        }
+    }
+    private function updateWorkout(){
+        $workouts = Workout::all();
+        foreach($workouts as $workout){
+            if($workout->comentario)$workout->comentario_element = serialize($workout->convertContent($workout->comentario));
+            if($workout->calentamiento)$workout->calentamiento_element = serialize($workout->convertContent($workout->calentamiento));
+            if($workout->con_content)$workout->con_content_element = serialize($workout->convertContent($workout->con_content));
+            if($workout->sin_content)$workout->sin_content_element = serialize($workout->convertContent($workout->sin_content));
+            if($workout->strong_male)$workout->strong_male_element = serialize($workout->convertContent($workout->strong_male));
+            if($workout->strong_female)$workout->strong_female_element = serialize($workout->convertContent($workout->strong_female));
+            if($workout->fit)$workout->fit_element = serialize($workout->convertContent($workout->fit));
+            if($workout->cardio)$workout->cardio_element = serialize($workout->convertContent($workout->cardio));
+            if($workout->extra_sin)$workout->extra_sin_element = serialize($workout->convertContent($workout->extra_sin));
+            if($workout->activo)$workout->activo_element = serialize($workout->convertContent($workout->activo));
+            if($workout->blog)$workout->blog_element = serialize($workout->convertContent($workout->blog));
+            $workout->save();
+        }
+    }
+    private function updateStaticWorkout(){
+        $workouts = StaticWorkout::all();
+        foreach($workouts as $workout){
+            if($workout->comentario)$workout->comentario_element = serialize($workout->convertContent($workout->comentario));
+            if($workout->calentamiento)$workout->calentamiento_element = serialize($workout->convertContent($workout->calentamiento));
+            if($workout->con_content)$workout->con_content_element = serialize($workout->convertContent($workout->con_content));
+            if($workout->sin_content)$workout->sin_content_element = serialize($workout->convertContent($workout->sin_content));
+            if($workout->strong_male)$workout->strong_male_element = serialize($workout->convertContent($workout->strong_male));
+            if($workout->strong_female)$workout->strong_female_element = serialize($workout->convertContent($workout->strong_female));
+            if($workout->fit)$workout->fit_element = serialize($workout->convertContent($workout->fit));
+            if($workout->cardio)$workout->cardio_element = serialize($workout->convertContent($workout->cardio));
+            if($workout->extra_sin)$workout->extra_sin_element = serialize($workout->convertContent($workout->extra_sin));
+            if($workout->activo)$workout->activo_element = serialize($workout->convertContent($workout->activo));
+            if($workout->blog)$workout->blog_element = serialize($workout->convertContent($workout->blog));
+            $workout->save();
+        }
+    }
+    private function updateShortCodes(){
+        $shortCodes = \App\ShortCode::whereStatus('Active')->get();
+        $ids = [];
+        foreach($shortCodes as $shortCode){
+            $ids[] = $shortCode->id;
+        }
+        foreach($shortCodes as $shortCode){
+            $alternateA = $ids[rand(0,count($ids)-1)];
+            $alternateB = $ids[rand(0,count($ids)-1)];
+            if($shortCode->id != $alternateA && $alternateA!=$alternateB && $shortCode->id != $alternateB){
+                $shortCode->alternate_a = $alternateA;
+                $shortCode->multipler_a = 2;
+                $shortCode->alternate_b = $alternateB;
+                $shortCode->multipler_b = 1.5;
+                $shortCode->save();
+            }
+        }
+    }
+    private function bankRequest(){
+        $user = User::find(5896);
+        $duration = 3;
+        $amount = "8.99";
+        $bankFee = "1.23";
+        Mail::to($user->email)->send(new BankRequest($user->customer,$duration,$amount, $bankFee));        
+    }
+    private function customerSetfreeSuscription(){
+        $customer = Customer::find(5751);
+        $customer->setFreeSubscription();
+    }
+    private function findTransactionsWithoutCreditCard(){
+        $from = 2511;
+        $to = 2531;
+        for($i=$from;$i<=$to;$i++){
+            $transaction = Transaction::find($i);
+            if($transaction){
+                $subscription = Subscription::whereCustomerId($transaction->customer_id)->first();
+                if($subscription->status == "Active"){
+                    print_r($subscription->customer_id);
+                    //print_r("Subscription");
+                    print_r("\n");
+                }else{
+                    //print_r($i);
+                    //print_r("Transaction");
+                    //print_r("\n");
+                }
+            }
+        }
+    }
+    private function findActiveCustomersWithoutCreditCard(){
+        $subscriptions = Subscription::whereStatus("Active")->get();
+        foreach( $subscriptions as $subscription){
+            $tokens = PaymentTocken::whereCustomerId($subscription->customer_id)->get();
+             if(count($tokens) == 0){
+                print_r($subscription->end_date);
+                print_r("********");
+                print_r($subscription->customer_id);
+                print_r("\n");
+             }
+        }
+    }
+    private function loginActivity(){
+        $customer = Customer::find(5);
+        \App\Jobs\Activity::dispatch($customer,'2020-08-31');
+    }
+    private function surveyExport(){
+        $surveyReports = new SurveyReport;
+        $export = $surveyReports->findAnswersExport(1);
+    }
+    private function getImageSizes(){
+        $sizes = Setting::IMAGE_SIZES;
+        $sizes = array_values($sizes);
+        $y = [];
+        foreach($sizes as $size){
+            $s = explode('X',$size);
+            $y[] = $s;
+        }
+        print_r($y);
+    }
+    private function currentWorkoutPeriod(){
+        $subscription = Subscription::find(760);
+        //$text = $subscription->currentWorkoutPeriod();
+        $text = $subscription->nextWorkoutPlan();
+        print_r($text);
+    }
+    private function nextPaymentAmount(){
+        $paymentSubscription = PaymentSubscription::find(972);
+        $referralCoupon = Coupon::find(60);
+        $amount = $paymentSubscription->nextPaymentAmount($referralCoupon);
+        print_r($amount);
+    }
+    private function removeFriend(){
+        $customer = Customer::whereEmail("rudy.ralison@arneg.com.pa")->first();
+        if($customer)$customer->removeFriendShip();
+    }
+    private function payFreeFirst(){
+        $subscription = Subscription::find(751);
+        $subscription->scrapingFree();
+    }
+    private function sendFirstFreeEmail(){
+        $subscription = Subscription::find(751);
+        $paymentSubscription = PaymentSubscription::wherePlanId($subscription->payment_plan_id)->first();
+        if($paymentSubscription)$paymentSubscription->sendFirstFreeMail($subscription);
+    }
+    private function setFriend(){
+        $coupon = Coupon::find(70);
+        $customer = Customer::whereEmail("sui201842@outlook.com")->first();
+        if($customer&&$coupon)$customer->setFriendShip($coupon);
     }
     function checkdnsrr($hostName, $recType = '') 
     { 
@@ -255,7 +455,7 @@ class FindTransactions extends Command
         $paymentPlan = PaymentPlan::createOrUpdate($plan, $customer->id, $coupon, $frequency,'nmi');
         $subscription = Subscription::findOrCreate($customer->id,$plan, $coupon,$frequency,'nmi');
         $paymentSubscription = new PaymentSubscription;
-        list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan,true);
+        list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan);
         $transaction = Transaction::generate($paymentSubscription,$plan,$subscription);
         $nmiCustomerId = time();
         $tocken = new PaymentTocken;

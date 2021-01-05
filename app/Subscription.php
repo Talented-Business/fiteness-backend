@@ -4,13 +4,14 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\DB;
+use Mail;
+use Illuminate\Support\Facades\Log;
 use App\Mail\NmiVault;
 use App\Mail\SubscriptionCancel;
 use App\Mail\SubscriptionCancelAdmin;
-use Illuminate\Support\Facades\DB;
-use Mail;
-use App\Jobs\SendEmail;
-use App\Jobs\SendEmailToAdmin;
+use App\Payment\Bank;
+
 class Subscription extends Model
 {
     private $pageSize;
@@ -21,6 +22,14 @@ class Subscription extends Model
     private $search;
     private $firstWorkoutStartDate;
     const SUBSCRIPTION_URL = 'https://www.fitemos.com/pricing';
+    const CANCELLED_REASONS = [
+        'good'=>'Es bueno pero',
+        'not_suit'=>'El método de entrenamientos no se ajusta a mi',
+        'poor_quaulity'=>'El producto / servicio no llena mis expectativas',
+        'expensive'=>'Muy costoso / no tengo tiempo',
+        'other'=>'Otro',
+    ];
+    const TRACK_CUSTOMER_IDS = [5622];
     public static function validateRules()
     {
         return array(
@@ -210,25 +219,42 @@ class Subscription extends Model
         $this->pageSize = $request->input('pageSize');
         $this->pageNumber = $request->input('pageNumber');
     }
-    public function nextPaymentTime()
+    public function getExpirationTime(){
+        return $this->nextPaymentTime();
+    }
+    public function nextPaymentTime() 
     {
         if($this->status == 'Cancelled'){
             return null;
         }
-        if ($this->transaction && $this->transaction->status=='Completed') {
-            $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
-            if ($paymentSubscription) {
-                return $paymentSubscription->getEndDate($this->transaction);
-            }
+        if($this->plan && $this->plan->type=="Free"){
+            $cycles = $this->plan->free_duration;
+            $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$cycles day"));
+            return $nextdatetime;
         }else{
-            $paypalPlan = PaymentPlan::wherePlanId($this->payment_plan_id)->first();
-            if ($paypalPlan) {
-                list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paypalPlan->analyzeSlug();
-                $intervalUnit = strtolower(env('INTERVAL_UNIT'));
-                $cycles = $frequency;
-                $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$cycles $intervalUnit"));
-                return $nextdatetime;
-            }            
+            if ($this->transaction && $this->transaction->status=='Completed') {
+                $lastTransaction = Transaction::whereCustomerId($this->customer_id)->wherePlanId($this->plan_id)->whereStatus("Completed")->orderBy('id','desc')->first();
+                if($this->transaction_id == $lastTransaction->id){
+                    $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
+                    if ($paymentSubscription) {
+                        return $paymentSubscription->getEndDate($this->transaction);
+                    }    
+                }else if($this->transaction_id < $lastTransaction->id){
+                    $paymentSubscription = PaymentSubscription::whereSubscriptionId($lastTransaction->payment_subscription_id)->first();
+                    if ($paymentSubscription) {
+                        return $paymentSubscription->getEndDate($lastTransaction);
+                    }    
+                }
+            }else{
+                $paypalPlan = PaymentPlan::wherePlanId($this->payment_plan_id)->first();
+                if ($paypalPlan) {
+                    list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paypalPlan->analyzeSlug();
+                    $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+                    $cycles = $frequency;
+                    $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$cycles $intervalUnit"));
+                    return $nextdatetime;
+                }            
+            }
         }
         return null;
     }
@@ -470,6 +496,34 @@ class Subscription extends Model
             $lastPaymentSubscription->recurringProcessingWithCustomerVault($this);
         }
     }
+    private function scrapingFree(){
+        if($this->coupon&&in_array($this->coupon->type,Coupon::INVITATION_TYPES)){
+            if($this->coupon->expiration){
+                if(strtotime($this->coupon->expiration)<time() ){
+                    $this->end_date = date("Y-m-d H:i:s");
+                    $this->status = 'Cancelled';
+                    $this->save();
+                }
+            }
+        }else{
+            $paymentSubscription = PaymentSubscription::wherePlanId($this->payment_plan_id)->whereStatus('Approved')->first();
+            if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- firstProcessingWithCustomerVault Free----".($paymentSubscription == null));
+            if(strtotime($this->start_date) + $this->plan->free_duration*3600*24<time() ){
+                if($paymentSubscription)$paymentSubscription->firstProcessingWithCustomerVault($this);
+                else{
+                    if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Payment subscription is null----");
+                }
+            }
+            if ($this->end_date && $this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
+                $this->status = 'Cancelled';
+                $this->save();
+            }
+            if($this->status == 'Cancelled' && $paymentSubscription){
+                $paymentSubscription->status = 'Cancelled';
+                $paymentSubscription->save();
+            }
+        }
+    }
     private function scrapingPaid()
     {
         $paymentSubscriptions = PaymentSubscription::whereCustomerId($this->customer_id)->orderBy('start_date', 'DESC')->get();
@@ -482,16 +536,19 @@ class Subscription extends Model
 
         if ($lastPaymentSubscription && $lastTransaction) {
             list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $lastPaymentSubscription->analyzeSlug();
+            if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- payment analyze slug----");
             if ($this->transaction_id != $lastTransaction->id || $this->status == 'Pending-Cancellation' || $this->status == 'Pending') {
                 //according to last subscription, update start date and end date, status and so on.
+                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- massSave----");
                 $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $lastPaymentSubscription->plan_id, $startDate, $endDate, $lastTransaction, $lastPaymentSubscription->status);
             } else {
+                if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- last payment subscription status $lastPaymentSubscription->status ----");
                 $endDate = $lastPaymentSubscription->getEndDate();
                 $changed = false;
                 switch ($lastPaymentSubscription->status) {
                     case 'Cancelled':
                         if ($this->end_date === null) {
-                            $this->end_date = $endDate;
+                            $this->end_date = $this->transaction?$this->transaction->done_date:$endDate;
                             $changed = true;
                         }
                         if ($this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
@@ -502,13 +559,13 @@ class Subscription extends Model
                     case 'Active':
                         break;    
                 }
-                print_r($endDate);
+
                 if ($changed) {
                     print_r('changed');
                     $this->save();
                 }
             }
-        }
+        }            
     }
     private function massSave($provider, $planId, $customerId, $couponId, $frequency, $paymentPlanId, $startDate, $endDate, $lastTransaction, $status)
     {
@@ -522,12 +579,12 @@ class Subscription extends Model
                 }
                 $this->frequency = $this->findFrequency($frequency);
                 $this->payment_plan_id = $paymentPlanId;
-                $this->start_date = $startDate;
+                if($this->start_date==null)$this->start_date = $startDate;
                 //$this->end_date = $endDate;
                 if ($lastTransaction) {
                     $this->transaction_id = $lastTransaction->id;
                     $customer = Customer::find($customerId);
-                    if ($customer->first_payment_date == null && $lastTransaction->id>0) {
+                    if ($customer->first_payment_date == null && $lastTransaction->id>0 && $lastTransaction->total>0) {
                         $customer->first_payment_date = date('Y-m-d', strtotime($lastTransaction->done_date));
                         $customer->save();
                     }
@@ -563,6 +620,7 @@ class Subscription extends Model
                     $paymentSubscription->status = 'Cancelled';
                     $paymentSubscription->save();
                     $this->status = 'Cancelled';
+                    $this->end_date = date('Y-m-d H:i:s');
                     $this->transaction_id = $lastTransaction->id;
                     $this->save();
                 }
@@ -571,40 +629,56 @@ class Subscription extends Model
     }
     private function scraping()
     {
-        //isfree
-        if ($this->plan && $this->plan->type == 'Free') {
-            $t1 = time();
-            $t2 = strtotime($this->end_date);
-            $diff = $t1 - $t2;
-            $hours = $diff / 3600;
-            if ($hours > 72) {
-                $coupon = Coupon::whereType('Private')->whereCustomerId($this->customer_id)->whereCode(Coupon::TRIAL_AFTER . '_' . $this->plan->service_id . '_' . $this->customer_id)->first();
-                if ($coupon === null) {
-                    $coupon = new Coupon;
-                    $coupon->generatePrivateTrialAfter($this);
+        switch($this->gateway){
+            case 'nmi':
+                if ($this->plan && $this->plan->type == 'Free') {
+                    /*$t1 = time();
+                    $t2 = strtotime($this->end_date);
+                    $diff = $t1 - $t2;
+                    $hours = $diff / 3600;
+                    if ($hours > 72) {
+                        $coupon = Coupon::whereType('Private')->whereCustomerId($this->customer_id)->whereCode(Coupon::TRIAL_AFTER . '_' . $this->plan->service_id . '_' . $this->customer_id)->first();
+                        if ($coupon === null) {
+                            $coupon = new Coupon;
+                            $coupon->generatePrivateTrialAfter($this);
+                        }
+                    } else if ($hours > -24) {
+                        $coupon = Coupon::whereType('Private')->whereCustomerId($this->customer_id)->whereCode(Coupon::TRIAL_BEFORE . '_' . $this->plan->service_id . '_' . $this->customer_id)->first();
+                        if ($coupon === null) {
+                            $coupon = new Coupon;
+                            $coupon->generatePrivateTrialBefore($this);
+                        }
+                    }
+                    if ($this->end_date < date('Y-m-d H:i:s') && $this->status == 'Active') {
+                        $this->status = 'Expired';
+                        $this->save();
+                    }*/
+                    $this->scrapingFree();
+                } else {
+                    $this->scrapingPaid($this);
                 }
-            } else if ($hours > -24) {
-                $coupon = Coupon::whereType('Private')->whereCustomerId($this->customer_id)->whereCode(Coupon::TRIAL_BEFORE . '_' . $this->plan->service_id . '_' . $this->customer_id)->first();
-                if ($coupon === null) {
-                    $coupon = new Coupon;
-                    $coupon->generatePrivateTrialBefore($this);
-                }
-            }
-            if ($this->end_date < date('Y-m-d H:i:s') && $this->status == 'Active') {
-                $this->status = 'Expired';
-                $this->save();
-            }
-        } else {
-            $this->scrapingPaid();
+            break;
+            case 'bank':
+                Bank::scraping($this);
+            break;
         }
+        //isfree
     }
     private static function checkStatus()
     {
-        $customers = Customer::where(function ($query) {
-            $query->whereHas('user', function ($q) {
-                $q->where('active', '=', 1);
-            });
-        })->whereId(3194)->get();
+        if(env('APP_ENV') == 'local'){
+            $customers = Customer::where(function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('active', '=', 1);
+                });
+            })->where('id',5763)->get();
+        }else{
+            $customers = Customer::where(function ($query) {
+                $query->whereHas('user', function ($q) {
+                    $q->where('active', '=', 1);
+                });
+            })->get();    
+        }
         $services = Service::all();
         foreach ($services as $service) {
             foreach ($customers as $customer) { //I didn't consider service_id
@@ -614,9 +688,13 @@ class Subscription extends Model
                     });
                 })->first();
                 if ($subscription) {
-                    if($subscription->id == 427){
+                    if(in_array($subscription->customer_id, self::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("----Subscription scrape Start $subscription->customer_id ----");
+                    try{
                         $subscription->scraping();
+                    }catch(\Exception $e){
+                        if(in_array($subscription->customer_id, self::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("----Subscription scrape error ".$e->getMessage()." ----");
                     }
+                    if(in_array($subscription->customer_id, self::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("----Subscription scrape End $subscription->customer_id ----");
                 } else {
                     //new creation if payment subscription exist
                     $paymentSubscription = PaymentSubscription::whereCustomerId($customer->id)->first();
@@ -632,7 +710,7 @@ class Subscription extends Model
     {
         list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentSubscription->analyzeSlug();
         $lastTransaction = $paymentSubscription->findLastTransaction();
-        $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $paymentSubscription->plan_id, $startDate, $endDate, $lastTransaction, $paymentSubscription->status);
+        $this->massSave($provider, $planId, $customerId, $couponId, $frequency, $paymentSubscription->plan_id, date("Y-m-d H:i:s"), null, $lastTransaction, $paymentSubscription->status);
     }
     public static function scrape()
     {
@@ -643,20 +721,32 @@ class Subscription extends Model
         //Coupon scrape
         Coupon::scrape();
     }
-    public function cancel($enableEnd, $reason,$credit)
+    public function cancel($enableEnd, $qualityLevel, $radioReason, $reasonText, $recommendation, $credit)
     {
         if ($this->plan->type === 'Free') {
             if ($enableEnd === "yes") {
+                $cycles = $this->plan->free_duration;
+                $this->end_date = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$cycles day"));
                 $this->cancelled_date = date('Y-m-d H:i:s');
             } else {
                 $this->cancelled_date = date('Y-m-d H:i:s');
                 $this->end_date = date('Y-m-d H:i:s');
+                $this->status = 'Cancelled';
             }
-            $this->cancelled_reason = $reason;
             $this->cancelled_now = $enableEnd;
-            $this->status = 'Cancelled';
+            $this->quality_level = $qualityLevel;
+            $this->cancelled_radio_reason = $radioReason;
+            if($reasonText)$this->cancelled_radio_reason_text = $reasonText;
+            $this->recommendation = $recommendation;
             $this->save();
-            return true;
+            $paymentSubscription = PaymentSubscription::whereCustomerId($this->customer_id)->wherePlanId($this->payment_plan_id)->first();
+            if($paymentSubscription)$paymentSubscription->cancelAction();
+            $cancelDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->cancelled_date)));
+            $subscriptionEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->end_date)));
+            Mail::to($this->customer->email)->send(new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));                    
+            Mail::to(env("MAIL_FROM_ADDRESS"))->send(new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$qualityLevel, self::CANCELLED_REASONS[$radioReason],$reasonText,$recommendation,$enableEnd));
+            $this->customer->removeFriendShip();
+            return [true,$subscriptionEndDate];
         } else { //paid
             $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
             if ($paymentSubscription) {
@@ -670,20 +760,24 @@ class Subscription extends Model
                         $this->end_date = date('Y-m-d H:i:s');
                         $this->status = 'Cancelled';
                     }
-                    $this->cancelled_reason = $reason;
                     $this->cancelled_now = $enableEnd;
+                    $this->quality_level = $qualityLevel;
+                    $this->cancelled_radio_reason = $radioReason;
+                    if($reasonText)$this->cancelled_radio_reason_text = $reasonText;
+                    $this->recommendation = $recommendation;
                     $this->save();
                     if($credit)$this->customer->removePaymentMethods();
                     setlocale(LC_ALL, "es_ES", 'Spanish_Spain', 'Spanish');
                     $cancelDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->cancelled_date)));
                     $subscriptionEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->end_date)));
-                    SendEmail::dispatch($this->customer,new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));
-                    SendEmailToAdmin::dispatch(env("MAIL_FROM_ADDRESS"),new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$reason,$enableEnd));
-                    return true;
+                    Mail::to($this->customer->email)->send(new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));                    
+                    Mail::to(env("MAIL_FROM_ADDRESS"))->send(new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$qualityLevel, self::CANCELLED_REASONS[$radioReason],$reasonText,$recommendation,$enableEnd));
+                    $this->customer->removeFriendShip();
+                    return [true,$subscriptionEndDate];
                 }
             }
         }
-        return false;
+        return [false,null];
     }
     public function suspendWithNmi(){
         $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
@@ -731,6 +825,27 @@ class Subscription extends Model
                 case '12':
                     return 'yearly';
                     break;
+            }
+        }else if($this->plan->type == "Free"){
+            $paypalPlan = PaymentPlan::wherePlanId($this->payment_plan_id)->first();
+            if ($paypalPlan) {
+                list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paypalPlan->analyzeSlug();
+            }
+            if(isset($frequency)){
+                switch ($frequency) {
+                    case '1':
+                        return 'monthly';
+                        break;
+                    case '3':
+                        return 'quarterly';
+                        break;
+                    case '6':
+                        return 'semiannual';
+                        break;
+                    case '12':
+                        return 'yearly';
+                        break;
+                }
             }
         }
         return '';
@@ -788,6 +903,18 @@ class Subscription extends Model
             $startDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime($this->transaction->done_date)));
             $endDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime($this->nextPaymentTime())));
             return $this->frequency.' ('.$startDate.' - '.$endDate.')';
+        }else{
+            $cycles = $this->plan->free_duration;
+            $startDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime($this->start_date)+$cycles*3600*24));
+            $paypalPlan = PaymentPlan::wherePlanId($this->payment_plan_id)->first();
+            if ($paypalPlan) {
+                list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paypalPlan->analyzeSlug();
+                $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+                $endDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$frequency $intervalUnit")+$cycles*3600*24));
+            }else{
+                $endDate = "";    
+            }
+            return $this->frequency.' ('.$startDate.' - '.$endDate.')';
         }
         return '';
     }
@@ -797,38 +924,48 @@ class Subscription extends Model
         if($nextPaymentTime)$nextPaymentTime = strtotime($nextPaymentTime);
         else $nextPaymentTime = time();
         $texts = [];
+        $nextDates = [];
         $textsWithPrice = [];
         $nextRenewalStartDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", $nextPaymentTime));
         $intervalUnit = strtolower(env('INTERVAL_UNIT'));
-        if($this->plan->month_1){
+        if($this->plan->type == "Free"){
+            $plan = SubscriptionPlan::whereServiceId($this->plan->service_id)->whereType("Paid")->first();
+        }else{
+            $plan = $this->plan;
+        }
+        if($plan->month_1){
             $cycles = 1;
             $nextPaymentEndTime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", $nextPaymentTime) . " +$cycles $intervalUnit"));
             $nextRenewalEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime($nextPaymentEndTime)));
             $texts['monthly'] = 'Mensual ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')';
-            $textsWithPrice[] = ['frequency'=>'monthly','label' => 'Mensual - '.$this->plan->month_1.' ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')'];
+            $textsWithPrice[] = ['frequency'=>'monthly','label' => 'Mensual - '.$plan->month_1.' ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')'];
+            $nextDates['monthly'] = $nextRenewalEndDate;
         }
-        if($this->plan->month_3){
+        if($plan->month_3){
             $cycles = 3;
             $nextPaymentEndTime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", $nextPaymentTime) . " +$cycles $intervalUnit"));
             $nextRenewalEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime($nextPaymentEndTime)));
             $texts['quarterly'] = 'Trimestral ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')';
-            $textsWithPrice[] = ['frequency'=>'quarterly','label' => 'Trimestral - '.$this->plan->month_3.' ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')'];
+            $textsWithPrice[] = ['frequency'=>'quarterly','label' => 'Trimestral - '.$plan->month_3.' ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')'];
+            $nextDates['quarterly'] = $nextRenewalEndDate;
         }
-        if($this->plan->month_6){
+        if($plan->month_6){
             $cycles = 6;
             $nextPaymentEndTime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", $nextPaymentTime) . " +$cycles $intervalUnit"));
             $nextRenewalEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime($nextPaymentEndTime)));
             $texts['semiannual'] = 'Semestral ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')';
-            $textsWithPrice[] = ['frequency'=>'semiannual','label' => 'Semestral - '.$this->plan->month_6.' ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')'];
+            $textsWithPrice[] = ['frequency'=>'semiannual','label' => 'Semestral - '.$plan->month_6.' ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')'];
+            $nextDates['semiannual'] = $nextRenewalEndDate;
         }
-        if($this->plan->month_12){
+        if($plan->month_12){
             $cycles = 12;
             $nextPaymentEndTime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", $nextPaymentTime) . " +$cycles $intervalUnit"));
             $nextRenewalEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime($nextPaymentEndTime)));
             $texts['yearly'] = 'Anual ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')';
-            $textsWithPrice[] = ['frequency'=>'yearly','label' => 'Anual - '.$this->plan->month_12.' ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')'];
+            $textsWithPrice[] = ['frequency'=>'yearly','label' => 'Anual - '.$plan->month_12.' ('.$nextRenewalStartDate.' - '.$nextRenewalEndDate.')'];
+            $nextDates['yearly'] = $nextRenewalEndDate;
         }
-        return ['text'=>$texts,'price'=>$textsWithPrice];
+        return ['text'=>$texts,'nextDate'=>$nextDates,'price'=>$textsWithPrice];
     }
     public static function findOrCreate($customerId, $servicePlan, $coupon, $frequency, $gateway)
     {
@@ -878,7 +1015,7 @@ class Subscription extends Model
         }
     }
     private function initailFirstWorkoutStartDate(){
-        $record = $paymentSubscription = DB::table('payment_subscriptions')
+        /*$record = $paymentSubscription = DB::table('payment_subscriptions')
         ->join('transactions','payment_subscriptions.subscription_id','=','transactions.payment_subscription_id')
         ->join('subscription_plans','subscription_plans.id','=','transactions.plan_id')
         ->select('payment_subscriptions.start_date')
@@ -889,7 +1026,8 @@ class Subscription extends Model
         ->first();
         if($record){
             $this->firstWorkoutStartDate = $record->start_date;
-        }
+        }*/
+        $this->firstWorkoutStartDate = $this->start_date;
     }
     public function getFirstWorkoutStartDate(){//workout
         if($this->firstWorkoutStartDate==null){

@@ -10,6 +10,9 @@ use App\User;
 use App\Customer;
 use App\Session;
 use Twilio\Rest\Client;
+use Google_Client;
+use Vinkla\Facebook\Facades\Facebook;
+
 
 class UserController extends Controller
 {
@@ -56,6 +59,7 @@ class UserController extends Controller
         list($user,$tokenResult) = User::generateAcessToken($user);
         $newToken = $tokenResult->token;
         Session::updateToken($oldToken,$newToken);
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json([
             'authentication'=>[
                 'accessToken' => $tokenResult->accessToken,
@@ -64,6 +68,13 @@ class UserController extends Controller
                 )->toDateTimeString(),
             ],
             'user' => $user
+        ]);
+    }
+    public function me(Request $request){
+        $user = $request->user('api');
+        $me = User::findDetails($user);
+        return response()->json([
+            'user' => $me
         ]);
     }
     public function update($id,Request $request){
@@ -103,43 +114,62 @@ class UserController extends Controller
         $user->save();
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    public function updateEmail(Request $request){
+        $user = $request->user('api');
+        $validator = Validator::make($request->all(), array('email'=>['required','max:255','unique:users,email,'.$user->id]));
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()],422);
+        }
+        if($user->type=="admin" ){
+            return response()->json(['errors'=>['auth'=>'authorization']],422);
+        }
+        if($request->exists('email')){
+            $user->email = $request->input('email');
+            $user->save();
+            $user->customer->email = $request->input('email');
+            $user->customer->save();
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
+        }
+        return response()->json(array('status'=>'ok','user'=>$user));
+    }
+    public function updatePassword(Request $request){
+        $user = $request->user('api');
+        if($request->exists('password')){
+            if( $request->password != $request->confirm_password ){
+                return response()->json(['errors'=>['password'=>'password_unmatched']],422);
+            }
+            $user->password = Hash::make($request->password);
+            $user->save();
+        }
+        return response()->json(array('status'=>'ok','user'=>$user));
+    }
+    public function updateImage(Request $request){
+        $user = $request->user('api');
+        if($user&&$request->hasFile('image')&&$request->file('image')->isValid()){ 
+            $photoPath = $request->image->store('media/user');
+            $file = storage_path('app/public/'.$photoPath);
+            //$this->cropImage($file,200,200,$file);
+            if(PHP_OS == 'Linux'){
+                $output = shell_exec("mogrify -auto-orient $file");
+                sleep(1);
+            }
+            $user->avatar = $photoPath;
+            $user->save();
+        }        
+        return response()->json(array('status'=>'ok','user'=>$user));
+    }
     public function customerUpdate(Request $request){
         $user = $request->user('api');
         $validator = Validator::make($request->all(), Customer::validateUserSettingRules($user->id,$user->customer->id));
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()],422);
         }
-        $password = false;
-        if($request->exists('password')){
-            /*if (Hash::check($request->current_password, $user->password)==false) {
-                return response()->json(array('status'=>'failed','errors'=>['password'=>'current_password_falied']));
-            }*/
-            if( $request->password != $request->confirm_password ){
-                return response()->json(['errors' => ['password'=>[['error'=>'password_unmatched']]]],422);
-            }
-            $password = true;
-        }
-        if($request->exists('email')){
-            $user->email = $request->input('email');
-        }
-        if($password)$user->password = Hash::make($request->password);
-        if($request->hasFile('image')&&$request->file('image')->isValid()){ 
-            $photoPath = $request->image->store('media/user');
-            $file = storage_path('app/public/'.$photoPath);
-            $this->cropImage($file,160,237,$file);
-            if(PHP_OS == 'Linux'){
-                $output = shell_exec("mogrify -auto-orient $file");
-                sleep(1);
-            }
-            $user->avatar = $photoPath;
-        }        
         $user->name = $request->input('first_name').' '.$request->input('last_name');
         $user->save();
         $user->customer->first_name = $request->input('first_name');
         $user->customer->last_name = $request->input('last_name');
-        $user->customer->active_email = $request->input('active_email');
-        $user->customer->email = $request->input('customer_email');
-        $user->customer->active_whatsapp = $request->input('active_whatsapp');
+        $user->customer->gender = $request->input('gender');
+        $user->customer->current_height = $request->input('current_height');
         $user->customer->whatsapp_phone_number = $request->input('whatsapp_phone_number');
         $user->customer->country = $request->input('country');
         $user->customer->country_code = $request->input('country_code');
@@ -152,6 +182,13 @@ class UserController extends Controller
             }
         }
         $user->customer->save();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
+        return response()->json(array('status'=>'ok','user'=>$user));
+    }
+    public function deleteImage(Request $request){
+        $user = $request->user('api');
+        $user->avatar = null;
+        $user->save();
         return response()->json(array('status'=>'ok','user'=>$user));
     }
     private function cropImage($sourcePath, $width=200,$height=230, $destination = null) {
@@ -172,28 +209,20 @@ class UserController extends Controller
         }
       
         list($srcWidth, $srcHeight) = getimagesize($sourcePath);
-        $originalAspect = $srcWidth / $srcHeight;
-        $thumbAspect = $width / $height;      
+      
         // calculating the part of the image to use for thumbnail
-        if ( $originalAspect >= $thumbAspect )
-        {
-           // If image is wider than thumbnail (in aspect ratio sense)
-           $newHeight = $height;
-           $newWidth = $srcWidth / ($srcHeight / $height);
+        if ($srcWidth > $srcHeight) {
+          $y = 0;
+          $x = ($srcWidth - $srcHeight) / 2;
+          $smallestSide = $srcHeight;
+        } else {
+          $x = 0;
+          $y = ($srcHeight - $srcWidth) / 2;
+          $smallestSide = $srcWidth;
         }
-        else
-        {
-           // If the thumbnail is wider than the image
-           $newWidth = $width;
-           $newHeight = $srcHeight / ($srcWidth / $width);
-        }      
+      
         $destinationImage = imagecreatetruecolor($width, $height);
-        imagecopyresampled($destinationImage, $sourceImage, 
-            0 - ($newWidth - $width) / 2, // Center the image horizontally
-            0 - ($newHeight - $height) / 2, // Center the image vertically
-            0, 0,
-            $newWidth, $newHeight,
-            $srcWidth, $srcHeight);
+        imagecopyresampled($destinationImage, $sourceImage, 0, 0, $x, $y, $width, $height, $smallestSide, $smallestSide);
       
         if ($destination == null) {
           header('Content-Type: image/jpeg');
@@ -236,6 +265,7 @@ class UserController extends Controller
             }
         }
         $user->customer->save();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(array('status'=>'ok','user'=>$user));
     }
     public function destroy($id){
@@ -259,5 +289,63 @@ class UserController extends Controller
     public function show($id){
         $user = User::find($id);
         return $user;
+    }
+    public function removeGoogle(Request $request){
+        $user = $request->user('api');
+        $user->google_provider_id = null;
+        $user->google_name = null;
+        $user->save();
+    }
+    public function removeFacebook(Request $request){
+        $user = $request->user('api');
+        $user->facebook_provider_id = null;
+        $user->facebook_name = null;
+        $user->save();
+    }
+    public function addGoogle(Request $request){
+        $user = $request->user('api');
+        $client = new Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);  // Specify the CLIENT_ID of the app that accesses the backend
+        $payload = $client->verifyIdToken($request->input('id_token'));
+        if($payload){
+            $user->google_provider_id = $payload['sub'];
+            $user->google_name = $payload['given_name']." ".$payload['family_name'];
+            $user->save();
+            $me = User::findDetails($user);
+            return response()->json([
+                'user' => $me
+            ]);
+        }
+        return response()->json([
+            'errors' => ['password'=>[['error'=>'invalid']]]
+        ],401);
+        
+    }
+    public function addFacebook(Request $request){
+        $user = $request->user('api');
+        $response = Facebook::get('/me?&fields=first_name,last_name,email', $request->input('id_token'));
+        $provider = 'facebook';
+        if ($response) {
+            $group = $response->getGraphGroup();
+            $facebookId = $group->getId();
+            $firstName = $group->getProperty('first_name');
+            $lastName = $group->getProperty('last_name');
+            $facebookUser = User::whereFacebookProviderId($facebookId)->first();
+            if($facebookUser){
+                return response()->json([
+                    'errors' => ['email'=>[['error'=>'unique']]]
+                ], 421);
+            }else{
+                $user->facebook_provider_id = $facebookId;
+                $user->facebook_name = $firstName." ".$lastName;
+                $user->save();
+            }
+            $me = User::findDetails($user);
+            return response()->json([
+                'user' => $me
+            ]);
+        }
+        return response()->json([
+            'errors' => ['email'=>[['error'=>'failed']]]
+        ], 423);
     }
 }

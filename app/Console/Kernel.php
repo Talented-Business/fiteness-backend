@@ -59,6 +59,14 @@ class Kernel extends ConsoleKernel
             ->evenInMaintenanceMode()
             ->timezone('America/Panama');
         $schedule->command('db:backup')->hourly();
+        $schedule->command('export:customers')
+            ->dailyAt('20:00')
+            ->evenInMaintenanceMode()
+            ->timezone('America/Panama');
+        $schedule->command('generate:report')
+            ->dailyAt('23:59')
+            ->evenInMaintenanceMode()
+            ->timezone('America/Panama');
     }
     private function isRunQueue(){
         exec("ps -eo cmd", $output, $return);

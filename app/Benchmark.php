@@ -7,7 +7,7 @@ use Illuminate\Pagination\Paginator;
 
 class Benchmark extends Model
 {
-    protected $fillable = ['title','description','time'];    
+    protected $fillable = ['title','description','time','post_date'];    
     private $pageSize;
     private $pageNumber;
     private $search;
@@ -32,8 +32,13 @@ class Benchmark extends Model
         });      
         $response = $where->orderBy('created_at', 'DESC')->paginate($this->pageSize);
         $items = $response->items();
-        foreach($items as $item){
-            if($item->image)  $item->image = url('storage/'.$item->image);            
+        foreach($items as $index=>$item){
+            if($item->image)  $item->image = url('storage/'.$item->image);      
+            if($item->post_date){
+                $dates = explode(' ',$item->post_date);
+                $items[$index]['date'] = $dates[0];
+                $items[$index]['datetime'] = substr($dates[1],0,5);
+            }      
         }
         return $response;
     }

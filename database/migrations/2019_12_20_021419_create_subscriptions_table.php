@@ -35,7 +35,7 @@ class CreateSubscriptionsTable extends Migration
                 ->references('id')
                 ->on("coupons")
                 ->onDelete('cascade');            
-            $table->enum('gateway',['paypal', 'nmi'])->nullable();
+            $table->enum('gateway',['paypal', 'nmi', 'bank'])->nullable();
             $table->string('payment_plan_id')->nullable();
             $table->datetime('start_date')->nullable();//latest start date
             $table->datetime('end_date')->nullable();//latest end date

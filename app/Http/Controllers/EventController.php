@@ -10,6 +10,9 @@ use Vinkla\Facebook\Facades\Facebook;
 
 class EventController extends Controller
 {
+    public function __construct(){
+        $this->middleware('EventChangeData');
+    }
     public function store(Request $request)
     {
         $user = $request->user('api');
@@ -21,6 +24,8 @@ class EventController extends Controller
             $event = new Event;
             if($request->hasFile('image')&&$request->file('image')->isValid()){ 
                 $photoPath = $request->image->store('photos');
+                $fileNameUpdate = basename($photoPath);
+                $event->resizeImage('photos',$fileNameUpdate);
                 $event->image = $photoPath;
             }        
             $event->assign($request);
@@ -41,6 +46,8 @@ class EventController extends Controller
             $event = Event::find($id);
             if($request->hasFile('image')&&$request->file('image')->isValid()){ 
                 $photoPath = $request->image->store('photos');
+                $fileNameUpdate = basename($photoPath);
+                $event->resizeImage('photos',$fileNameUpdate);
                 $event->image = $photoPath;
             }        
             $event->assign($request);
@@ -77,10 +84,36 @@ class EventController extends Controller
         $event = Event::find($id);
         if($event->image)  $event->image = url('storage/'.$event->image);
         $event->category;
-        $event['created_date'] = date('M d, Y',strtotime($event->created_at));
+        $event['created_date'] = date('M d, Y',strtotime($event->post_date));
+        if($event->post_date){
+            $event['immediate'] = false;
+            $dates = explode(' ',$event->post_date);
+            $event['date'] = $dates[0];
+            $event['datetime'] = substr($dates[1],0,5);
+        }
         return response()->json($event);
     }
     public function index(Request $request){
+        $files = \Storage::disk('public')->files('photos');
+        $convertFiles = [];
+        foreach($files as $file){
+            $key = basename($file);
+            $convertFiles[$key] = $file;
+        }
+        $mfiles = \Storage::disk('public')->files('photos/m');
+        $convertmFiles = [];
+        foreach($mfiles as $file){
+            $key = basename($file);
+            $convertmFiles[$key] = $file;
+            if(isset($convertFiles[$key])){
+                unset($convertFiles[$key]);   
+            }
+        }
+        $event =  new Event;
+        foreach($convertFiles as $file){
+            $fileNameUpdate = basename($file);
+            $event->resizeImage('photos',$fileNameUpdate);
+        }
         $user = $request->user('api');
         if($user->can('events')){
             $event = new Event;
@@ -93,6 +126,8 @@ class EventController extends Controller
     public function home(Request $request){
         $event = new Event;
         $event->assignFrontSearch($request);
+        $user = $request->user('api');
+        if($user&&$user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json($event->search());
     }
     public function disable($id,Request $request)
@@ -126,7 +161,7 @@ class EventController extends Controller
         }
     }
     public function recent(){
-        $items = Event::whereStatus('Publish')->take(3)->orderBy('created_at','desc')->get();
+        $items = Event::whereStatus('Publish')->where('post_date','<',date("Y-m-d H:i:s"))->take(3)->orderBy('created_at','desc')->get();
         foreach($items as $index=> $event){
             $items[$index]['created_date'] = date('M d, Y',strtotime($event->created_at));
             $event->category;

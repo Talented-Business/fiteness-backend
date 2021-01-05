@@ -11,7 +11,6 @@ use App\User;
 use Mail;
 use App\Mail\VerifyMail;
 use App\Mail\PasswordMail;
-use App\Jobs\SendEmailToAdmin;
 use App\Session;
 
 class AuthController extends Controller
@@ -44,6 +43,7 @@ class AuthController extends Controller
             'heightUnit'=>'required|string',
             'application_source'=>'required|string',
             'couponCode'=>'nullable',
+            'invitationEmail'=>'nullable',
         ]);
         $user = User::createCustomer($record);
         /*try{
@@ -64,7 +64,7 @@ class AuthController extends Controller
                     )->toDateTimeString(),
                 ],
                 'user' => $user
-            ], 201);
+            ], 200);
         }else{
             return response()->json([
                 'errors' => [['error'=>'api']]
@@ -88,7 +88,7 @@ class AuthController extends Controller
         if ($user) {
             $user->update(['password' => Hash::make($password_code)]);
             $data = ['token' => $password_code,'name'=>$user->name];
-            SendEmailToAdmin::dispatch($email,new PasswordMail($data));
+            Mail::to($email)->send(new PasswordMail($data));
             return response()->json(true);
         } else {
             return response()->json(false,422);
@@ -114,6 +114,7 @@ class AuthController extends Controller
         }
         list($user,$tokenResult) = User::generateAcessToken($user);
         Session::sessionStartWithUser($user,$tokenResult->token->id);
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json([
             'authentication'=>[
                 'accessToken' => $tokenResult->accessToken,
@@ -174,6 +175,7 @@ class AuthController extends Controller
         $payload = $client->verifyIdToken($request->input('access_token'));
         if($payload){
             $user = User::where('provider_id','=',$payload['sub'])->first();
+            if($user == null)$user = User::where('google_provider_id','=',$payload['sub'])->first();
             if($user==null){
                 return response()->json([
                     'errors' => ['account'=>[['error'=>'not registered']]]
@@ -186,6 +188,7 @@ class AuthController extends Controller
             }
             list($user,$tokenResult) = User::generateAcessToken($user);
             Session::sessionStartWithUser($user,$tokenResult->token->id);
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
             return response()->json([
                 'authentication'=>[
                     'accessToken' => $tokenResult->accessToken,
@@ -283,6 +286,7 @@ class AuthController extends Controller
             $group = $response->getGraphGroup();
             $facebookId = $group->getId();
             $user = User::where('provider_id','=',$facebookId)->first();
+            if($user == null)$user = User::where('facebook_provider_id','=',$facebookId)->first();
             if($user==null){
                 return response()->json([
                     'errors' => ['account'=>[['error'=>'not registered']]]
@@ -295,6 +299,7 @@ class AuthController extends Controller
             }
             list($user,$tokenResult) = User::generateAcessToken($user);
             Session::sessionStartWithUser($user,$tokenResult->token->id);
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
             return response()->json([
                 'authentication'=>[
                     'accessToken' => $tokenResult->accessToken,

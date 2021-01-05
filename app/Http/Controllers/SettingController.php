@@ -22,8 +22,7 @@ class SettingController extends Controller
         $unit = $request->input('unit');
         $newCouponId = $request->input('new_coupon_id');
         $renewalCouponId = $request->input('renewal_coupon_id');
-        $newSecondMail = $request->input('new_second_mail');
-        Setting::saveCart($time,$unit,$newCouponId,$renewalCouponId,$newSecondMail);
+        Setting::saveCart($time,$unit,$newCouponId,$renewalCouponId);
         return response()->json(['status'=>'ok']);
     }
     public function permissions(){
@@ -34,6 +33,25 @@ class SettingController extends Controller
         $id = $request->input('id');
         $permissionIds = $request->input('permissionIds');
         User::updateRolePermissions($id,$permissionIds);
+        return response()->json(['status'=>'ok']);
+    }
+    public function referralDiscount(){
+        $discount = Setting::getReferralDiscount();
+        return response()->json(['discount'=>$discount]);
+    }
+    public function updateReferralDiscount(Request $request){
+        $discount = $request->input('discount');
+        Setting::saveReferralDiscount($discount);
+        Coupon::whereType('Referral')->update(['discount'=>$discount]);
+        return response()->json(['status'=>'ok']);
+    }
+    public function tagLine(){
+        $tagLine = Setting::getTagLine();
+        return response()->json(['tagLine'=>$tagLine]);
+    }
+    public function updateTagLine(Request $request){
+        $tagLine = $request->input('tagLine');
+        Setting::saveTagLine($tagLine);
         return response()->json(['status'=>'ok']);
     }
 }

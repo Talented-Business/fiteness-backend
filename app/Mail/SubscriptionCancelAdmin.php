@@ -13,19 +13,25 @@ class SubscriptionCancelAdmin extends Mailable
     public $customer;
     public $frequency;
     public $cancelDate;
-    public $cancelReason;
+    public $qualityLevel;
+    public $radioReason;
+    public $reasonText;
+    public $recommendation;
     public $enableEnd;
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct($customer,$frequency,$cancelDate,$cancelReason,$enableEnd)
+    public function __construct($customer,$frequency,$cancelDate,$qualityLevel, $radioReason,$reasonText,$recommendation,$enableEnd)
     {
         $this->customer = $customer;
         $this->frequency = $frequency;
         $this->cancelDate = $cancelDate;
-        $this->cancelReason = $cancelReason;
+        $this->qualityLevel = $qualityLevel;
+        $this->radioReason = $radioReason;
+        $this->reasonText = $reasonText;
+        $this->recommendation = $recommendation;
         $this->enableEnd = $enableEnd;
     }
 

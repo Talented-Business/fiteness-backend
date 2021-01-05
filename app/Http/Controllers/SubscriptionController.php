@@ -12,6 +12,7 @@ use App\PaymentPlan;
 use App\NmiClient;
 use App\Transaction;
 use App\PaymentTocken;
+use App\BankTransferRequest;
 use Fahim\PaypalIPN\PaypalIPNListener;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -36,7 +37,8 @@ class SubscriptionController extends Controller
             $subscription = Subscription::find($id);
             $subscription->customer;
             $subscription['serviceName'] = $subscription->plan->service->title;
-            $subscription['startDate'] = date('d/m/y',strtotime($subscription->start_date));
+            if($subscription->start_date)$subscription['startDate'] = date('d/m/y',strtotime($subscription->start_date));
+            else $subscription['startDate'] = '';
             if($subscription->end_date)$subscription['endDate'] = date('d/m/y',strtotime($subscription->end_date));
             if($subscription->cancelled_date)$subscription['cancelledDate'] = date('d/m/y',strtotime($subscription->cancelled_date));
             if($subscription->end_date && $subscription->status == 'Active'){
@@ -129,19 +131,71 @@ class SubscriptionController extends Controller
         }
         $subscription = Subscription::find($id);
         if($subscription->customer_id == $user->customer->id){
-            $paymentPlan = PaymentPlan::createOrUpdate($subscription->plan, $subscription->customer_id, $subscription->coupon, $frequency,'nmi');
-            $paymentSubscription = new PaymentSubscription;
-            if($subscription->end_date!=null){
-                $subscription->end_date=null;
-                $subscription->save();
+            switch($subscription->gateway){
+                case 'nmi':
+                    if($subscription->plan->type == 'Free'){
+                        $plan = SubscriptionPlan::where('service_id', '=', $subscription->plan->service_id)->where('type', '=', 'Paid')->first();
+                    }else $plan = $subscription->plan;
+                    $paymentPlan = PaymentPlan::createOrUpdate($subscription->plan, $subscription->customer_id, $subscription->coupon, $frequency,'nmi');
+                    $paymentSubscription = new PaymentSubscription;
+                    if($subscription->end_date!=null){
+                        $subscription->end_date=null;
+                        $subscription->save();
+                    }
+                    list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan);
+                    return response()->json(['status' => 'success', 'now' => $now]);
+                break;
+                case 'bank':
+                    return response()->json(['status' => 'failed', 'errors'=>'bank gateway'],404);
+                break;
+                default:
             }
-            list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan);
-            return response()->json(['status' => 'success', 'now' => $now]);
         }else{
             return response()->json(['status' => 'failed', 'errors'=>'customer is wrong'],422);
         }
     }
-    public function nmi(Request $request){
+    private function freeTrial(Request $request){
+        $plan = SubscriptionPlan::where('service_id', '=', $request->input('service_id'))->where('type', '=', 'Paid')->first();
+        $freePlan = SubscriptionPlan::where('service_id', '=', $request->input('service_id'))->where('type', '=', 'Free')->first();
+        $user = $request->user('api');
+        if($request->exists('coupon')){
+            $coupon = Coupon::find($request->input('coupon'));
+        }else{
+            $coupon = null;
+        }
+        $frequency = $request->input('frequency');
+        //$planSlug = PaymentPlan::createSlug($plan, $user->customer->id, $coupon, $frequency,'nmi');
+        //create or update plan 
+        $paymentPlan = PaymentPlan::createOrUpdate($plan, $user->customer->id, $coupon, $frequency,'nmi');
+        //find subscription, servicePlanId, customerId,
+        $subscription = Subscription::findOrCreate($user->customer->id,$freePlan, $coupon,$frequency,'nmi');
+        $nmiClient = new NmiClient;
+        $response = $nmiClient->addCustomerVault($user->customer, $request);
+        if(isset($response['result']) && $response['result'] == 'success' ){
+            $testing = false;
+            if($testing){
+                //$paymentSubscription = PaymentSubscription::find(6);
+            }else {
+                //create paymentSubscription and 
+                if($subscription->start_date == null)$subscription->start_date = date("Y-m-d H:i:s");
+                $subscription->status="active";
+                $subscription->plan_id = $freePlan->id;
+                $subscription->payment_plan_id = $paymentPlan->plan_id;
+                $subscription->save();
+                $paymentSubscription = new PaymentSubscription;
+                list($now, $paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan);
+                $paymentSubscription->sendFirstFreeMail($subscription);
+                $user->customer->setFriendShip($coupon);
+            }
+        }else{
+            return [false,'failed', $response['error_message'],422];
+        }
+        Cart::whereCustomerId($user->customer->id)->delete();
+        //print_r($planSlug);
+        //get price, frequency from coupon_id,
+        return [true,'ok', "",200];
+    }
+    private function paidPurchase(Request $request){
         //make plan
         $plan = SubscriptionPlan::where('service_id', '=', $request->input('service_id'))->where('type', '=', 'Paid')->first();
         $user = $request->user('api');
@@ -158,15 +212,10 @@ class SubscriptionController extends Controller
         $subscription = Subscription::findOrCreate($user->customer->id,$plan, $coupon,$frequency,'nmi');
         //create paymentSubscription and 
         $paymentSubscription = new PaymentSubscription;
-        $testing = false;
-        if($testing){
-            $paymentSubscription = PaymentSubscription::find(6);
-            $now = true;
-        }else {
-            list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan,true);
-        }
+        list($now,$paymentSubscription) = $paymentSubscription->createFromPlan($subscription,$paymentPlan);
         //create transaction(order);
         if( $now === true ){
+            $testing = false;
             if($testing){
                 $transaction = Transaction::find(9);
             }else{
@@ -178,23 +227,41 @@ class SubscriptionController extends Controller
             //return response;
             if($response && $response['result'] == 'success' ){
                 $now = $paymentSubscription->updateSubscription($transaction);
-                $paymentSubscription->firstSendMail($transaction);
+                $paymentSubscription->sendFirstMail($transaction);
+                $user->customer->setFriendShip($coupon);
             }else{
-                return response()->json(['status' => 'failed', 'now' => $now,'errors'=>$response['error_message']],422);
+                return [$now,'failed', $response['error_message'],422];
             }
         }else{
             $nmiClient = new NmiClient;
             $response = $nmiClient->addCustomerVault($user->customer, $request);
             if(isset($response['result']) && $response['result'] == 'success' ){
-                
+                $user->customer->setFriendShip($coupon);
             }else{
-                return response()->json(['status' => 'failed', 'now' => $now,'errors'=>$response['error_message']],422);
+                return [$now,'failed', $response['error_message'],422];
             }
         }
         Cart::whereCustomerId($user->customer->id)->delete();
         //print_r($planSlug);
         //get price, frequency from coupon_id,
-        return response()->json(['status' => 'ok', 'now' => $now]);
+        return [$now,'ok', "",200];
+    }
+    public function nmi(Request $request){
+        if($request->exists('kind') && $request->input('kind') == 'activate_with_trial'){
+            list($now, $status,$errors, $code) = $this->freeTrial($request);
+        }else{
+            list($now, $status,$errors, $code) = $this->paidPurchase($request);
+        }
+        if($code == 200) {
+            $user = $request->user('api');
+            $bankTransferRequest  = BankTransferRequest::whereCustomerId($user->customer->id)->whereStatus('Pending')->first();
+            if($bankTransferRequest){
+                $bankTransferRequest->status = 'Declined';
+                $bankTransferRequest->save();
+            }
+            return response()->json(['status' => 'ok', 'now' => $now]);
+        }
+        else return response()->json(['status' => $status, 'now' => $now,'errors'=>$errors], $code);
     }
     public function findPaypalPlan(Request $request)
     {
@@ -227,8 +294,11 @@ class SubscriptionController extends Controller
     public function cancel(Request $request)
     {
         $serviceId = $request->input('serviceId');
+        $qualityLevel = $request->input('qualityLevel');
+        $radioReason = $request->input('radioReason');
+        $reasonText = $request->input('reasonText');
+        $recommendation = $request->input('recommendation');
         $enableEnd = $request->input('enableEnd');
-        $reason = $request->input('reason');
         $credit = $request->input('credit');
         $user = $request->user('api');
         $customer = $user->customer;
@@ -238,11 +308,11 @@ class SubscriptionController extends Controller
             });
         })->first();
         if ($subscription) {
-            $success = $subscription->cancel($enableEnd, $reason,$credit);
+            list($success,$subscriptionEndDate) = $subscription->cancel($enableEnd, $qualityLevel, $radioReason, $reasonText, $recommendation,$credit);
         }
 
         if ($subscription && $success === true) {
-            return response()->json(['success' => 'success']);
+            return response()->json(['success' => 'success','endDate'=>$subscriptionEndDate]);
         }
 
         return response()->json(['error' => 'error'], 422);

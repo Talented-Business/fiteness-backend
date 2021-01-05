@@ -6,7 +6,12 @@
 <p>Email = {{$customer->email}}</p>
 <p>Cancelling Date = {{$cancelDate}}</p>
 <p>Cancelling Now = {{$enableEnd}}</p>
-<p>Cancelling Reason </p>
+<p>Stars = {{$qualityLevel}}</p>
+<p>Motivo:{{$radioReason}} </p>
+@if ($reasonText)
+    <p>Motivo Text:{{$reasonText}} </p>
+@endif
+<p>Feedback</p>
 <p  style="white-space: pre-line;">
-    {{$cancelReason}}
+    {{$recommendation}}
 </p>

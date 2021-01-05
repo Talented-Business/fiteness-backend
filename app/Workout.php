@@ -8,6 +8,7 @@ use Illuminate\Pagination\Paginator;
 class Workout extends Model
 {
     use WorkoutTrait;
+    const UPDATE=true;
     protected $fillable = ['content', 'strong_male', 'strong_female', 'fit', 'cardio', 'publish_date'];
     private $pageSize;
     private $statuses;
@@ -92,7 +93,17 @@ class Workout extends Model
                 date('Y-m-d', strtotime('sunday this week', strtotime($date))),
             ];
         }
-        $columns = ['comentario','calentamiento','con_content', 'sin_content', 'strong_male', 'strong_female', 'fit', 'cardio','extra_sin', 'activo', 'blog'];
+        $columns  = ['comentario','image_path','blog','blog_timer_type','blog_timer_work','blog_timer_round','blog_timer_rest','blog_timer_description'];
+        $primaryColumns = ['calentamiento','con_content', 'sin_content', 'strong_male', 'strong_female', 'fit', 'cardio','extra_sin', 'activo'];
+        foreach($primaryColumns as $column){
+            $columns[] = $column;
+            $columns[] = $column.'_note';
+            $columns[] = $column.'_timer_type';
+            $columns[] = $column.'_timer_work';
+            $columns[] = $column.'_timer_round';
+            $columns[] = $column.'_timer_rest';
+            $columns[] = $column.'_timer_description';
+        }
         $result = Workout::whereIn('publish_date', $week)->get();
         $workouts = [];
         foreach($columns as $column){
@@ -106,7 +117,8 @@ class Workout extends Model
                     }
                 }
                 if ($record) {
-                    $contents[$index] = $record[$column];
+                    if($column == 'image_path' && $record[$column])$contents[$index] = env('APP_URL').$record[$column];
+                    else $contents[$index] = $record[$column];
                     //$workouts[] = ['con_content' => $record->con_content ? $record->con_content : "", 'sin_content' => $record->sin_content ? $record->sin_content : "", 'strong_male' => $record->strong_male ? $record->strong_male : "", 'strong_female' => $record->strong_female ? $record->strong_female : "", 'fit' => $record->fit ? $record->fit : "", 'cardio' => $record->cardio ? $record->cardio : "", 'activo' => $record->activo ? $record->activo : "", 'blog' => $record->blog ? $record->blog : ""];
                 } else {
                     $contents[$index] = '';
@@ -139,7 +151,29 @@ class Workout extends Model
             $workout->publish_date = $date;
         }
         $workout->{$column} = $content;
+        switch($column){
+            case "comentario":
+            break;
+            default:
+            if($request->exists('note'))$workout->{$column.'_note'} = $request->input('note');
+            $workout->{$column.'_timer_type'} = $request->input('timer_type');
+            $workout->{$column.'_timer_work'} = $request->input('timer_work');
+            if($request->exists('timer_round'))$workout->{$column.'_timer_round'} = $request->input('timer_round');
+            if($request->exists('timer_rest'))$workout->{$column.'_timer_rest'} = $request->input('timer_rest');
+            if($request->exists('timer_description'))$workout->{$column.'_timer_description'} = $request->input('timer_description');
+        }
+        if(Workout::UPDATE){
+            $workout->{$column.'_element'} = serialize($workout->convertContent($content));
+        }
         $workout->save();
+        if(($column == 'comentario' || $column == 'blog') && $request->hasFile('image')&&$request->file('image')->isValid()){ 
+            $fileName = $workout->id . '.' . $request->file('image')->extension();
+            $basePath = 'media/workout/' . date('Y');
+            $request->file('image')->storeAs($basePath, $fileName);
+            $workout->image_path = '/storage/' . $basePath . '/' . $fileName;
+            $workout->save();
+        }        
+        if($workout->image_path!=null)$workout->image_path = env('APP_URL').$workout->image_path;
         return $workout;
     }
     public static function preview($request)
@@ -147,7 +181,13 @@ class Workout extends Model
         $date = date('Y-m-d', strtotime($request->input('date')));
         $column = $request->input('column');
         $workout = Workout::where('publish_date', '=', $date)->first();
+        $title = self::getTitleFromColumn($column);
+        if($title && strpos($workout[$column],'{h2}')<0)$workout[$column] = "{h2}$title{/h2}".$workout[$column];
         $content = self::replace($workout[$column],null);
+        if(Workout::UPDATE){
+            if($workout[$column.'_element'])$content = self::convertArray(unserialize($workout[$column.'_element']),$column);
+            // $content = ["Preview"];
+        }
         $whatsapp = self::replaceWhatsapp($workout[$column]);
         return ['content' => $content, 'whatsapp' => $whatsapp];
     }
@@ -155,6 +195,9 @@ class Workout extends Model
     {
         $record = Workout::where('publish_date', '=', $publishDate)->first();
         if ($record) {
+            if(Workout::UPDATE){
+                return self::findSendableContentFromArray($record,$publishDate, $workoutCondition, $weightsCondition, $objective, $gender,$customerId);
+            }
             return self::findSendableContent($record,$publishDate, $workoutCondition, $weightsCondition, $objective, $gender,$customerId);
         }
         return null;

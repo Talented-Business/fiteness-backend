@@ -45,14 +45,22 @@ class PaymentTockenController extends Controller
         }
         return response()->json($tocken);
     }
-    public function destroy($id){
+    public function destroy($id,Request $request){
         $tocken = PaymentTocken::find($id);
+        $user = $request->user('api');
+        if($user->customer){
+            $subscription = $user->customer->getActiveWorkoutSubscription(); 
+            if($subscription){
+                $items = PaymentTocken::whereCustomerId($user->customer->id)->get();
+                if(count($items) == 1)$tocken = null;
+            }
+        }
         if($tocken){
             $customerId = $tocken->customer_id;
             $tocken = $tocken->tocken;
             $destroy=PaymentTocken::destroy($id);            
         }
-        if ($destroy){
+        if (isset($destroy)){
             PaymentTocken::changeSubscription($customerId,$tocken);
             $data=[
                 'status'=>'1',

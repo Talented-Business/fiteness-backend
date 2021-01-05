@@ -7,7 +7,7 @@
 
 @section('content')
 <tr><td style="color: #747474">
-    {!! $content[0] !!}
+    {!! $content !!}
     <br />
     <a href="{{$homeUrl}}" style="
   width:280px;

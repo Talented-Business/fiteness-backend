@@ -15,7 +15,7 @@ class CreatePaymentSubscriptionsTable extends Migration
     {
         Schema::create('payment_subscriptions', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->enum('provider',['nmi',  'paypal'])->default('paypal');
+            $table->enum('provider',['nmi',  'paypal', 'bank'])->default('paypal');
             $table->string('plan_id');
             $table->string('subscription_id');
             $table->unsignedBigInteger('customer_id');            

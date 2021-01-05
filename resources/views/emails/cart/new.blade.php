@@ -7,15 +7,16 @@
 
 @section('content')
 <tr><td style="color: #747474">
-<h2 style="color: #747474">Hola {{$firstName}}</h2>
+<h2 style="color: #747474">¡Hola {{$firstName}}</h2>
 
-<p>Hemos notado que aún no comienzas a entrenar con FITEMOS.</p>
-<p>¿Sabías que no hay un mejor momento para potenciar tu vida FIT?</p>
-<p>En estos tiempos en casa, con tiempo libre extra, sería genial que le dedicaras tiempo a lo más importante, tu salud.</p>
-<p>Los hábitos se crean en 21 días y por eso te estamos ofreciendo {{$couponName}} con el código {{$couponCode}} al afiliarte hoy.</p>
-<p>Sabemos que no podrás dejar nuestras rutinas personalizadas. Y si es el caso, solo tendrás que entrar a tu 
-cuenta y desactivar la suscripción. No se realizará ningún cobro, siempre y cuando canceles antes del día 30.</p>
-<p>¿Qué esperas?</p>
+<p>Mi nombre es Marifer, un placer.</p>
+<p>He notado que aún estás decidiéndote iniciar con Fitemos.</p>
+<p>En realidad, sería genial si pudieses probar lo efectivo que es el plan de entrenamiento y lo grandiosa que es nuestra comunidad.</p>
+<p>Los hábitos se crean en 21 días y por eso te estamos ofreciendo 1 MES GRATIS al empezar a entrenar hoy.</p>
+<p>Prueba Fitemos sin compromiso. Si por alguna razón, los entrenamientos, la comunidad y el Team Fitemos, no se ajustan a lo que estabas buscando.</p>
+<p>Podrás cancelar la membresía sin compromiso alguno.</p>
+<p>Por otro lado, estaré contenta de poder solventar cualquier duda que tengas, a través de:<br/>
+<a href="mailto:hola@fitemos.com">hola@fitemos.com</a></p>
 <a href="{{$url}}" style="
   width:330px;
   margin: 23px auto;
@@ -40,7 +41,7 @@ cuenta y desactivar la suscripción. No se realizará ningún cobro, siempre y c
   text-align:center;
   " target="_blank">OBTENER 30 DÍAS GRATIS</a>
 
-<p style="text-align:center">Cualquier consulta que tengas te podemos atender en nuestras redes sociales o bien, en hola@fitemos.com</p> 
+<p style="text-align:center">Un saludo y ¡feliz entrenamientos!</p> 
 
 <p>Marifer Urrutia<br/>
 Team Fitemos</p>

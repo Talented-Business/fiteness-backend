@@ -20,6 +20,7 @@ class BenchmarkResultController extends Controller
         $benchmarkResult->customer_id = $user->customer->id;
         $benchmarkResult->save();
         $user->customer->increaseRecord('benckmark_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->returnBechmarks($user->customer->id, $benchmarkResult->benchmark_id);
     }
     public function update($id, Request $request)
@@ -34,6 +35,7 @@ class BenchmarkResultController extends Controller
         $benchmarkResult->customer_id = $user->customer->id;
         $benchmarkResult->save();
         $user->customer->increaseRecord('benckmark_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->returnBechmarks($user->customer->id, $benchmarkResult->benchmark_id);
     }
     public function destroy($id, Request $request)
@@ -49,6 +51,7 @@ class BenchmarkResultController extends Controller
             ];
             $user = $request->user('api');
             $user->customer->increaseRecord('benckmark_count');
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
             return $this->returnBechmarks($user->customer->id, $benchmarkResult->benchmark_id);
         } else {
             $data = [
@@ -73,9 +76,9 @@ class BenchmarkResultController extends Controller
         $benchmarkResult->assignSearch($request);
         return response()->json($benchmarkResult->search());
     }
-    private function returnBechmarks($customer_id, $benchmark_id)
+    private function returnBechmarks($customerId, $benchmarkId)
     {
-        $result = BenchmarkResult::where('customer_id', '=', $customer_id)->where('benchmark_id', '=', $benchmark_id)->orderBy('recording_date', 'DESC')->take(10)->get();
+        $result = BenchmarkResult::where('customer_id', '=', $customerId)->where('benchmark_id', '=', $benchmarkId)->orderBy('recording_date', 'DESC')->take(10)->get();
         foreach ($result as $item) {
             $item['recording_date_format'] = date("d/m/Y", strtotime($item->recording_date));
         }
@@ -84,8 +87,9 @@ class BenchmarkResultController extends Controller
     public function benchmark($id, Request $request)
     {
         $user = $request->user('api');
-        $customer_id = $user->customer->id;
-        return $this->returnBechmarks($customer_id, $id);
+        $customerId = $user->customer->id;
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
+        return $this->returnBechmarks($customerId, $id);
     }
     private function getInterval($startDate)
     {
@@ -112,10 +116,11 @@ class BenchmarkResultController extends Controller
     public function history(Request $request)
     {
         $user = $request->user('api');
-        $customer_id = $user->customer->id;
-        $result = BenchmarkResult::where('customer_id', '=', $customer_id)->orderBy('recording_date', 'asc')->get();
+        $customerId = $user->customer->id;
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
+        $result = BenchmarkResult::where('customer_id', '=', $customerId)->orderBy('recording_date', 'asc')->get();
         if (isset($result[0])) {
-            $registerDate = date("Y-m-d", $user->customer->registration_date);
+            $registerDate = date("Y-m-d", strtotime($user->customer->created_at));
             $startDate = $result[0]->recording_date;
             $lastDate = $result[count($result)-1]->recording_date;
             if(date("Y-m-d")>$lastDate)$lastDate = date("Y-m-d");
@@ -171,7 +176,7 @@ class BenchmarkResultController extends Controller
                 }
                 if ($benchmark->id == $lastId) {
                     while (strtotime($nextDate) <= strtotime($endDate)) {
-                        $data[$nextDate] += $repetition;
+                        if(isset($data[$nextDate]))$data[$nextDate] += $repetition;
                         $nextDate = date("Y-m-d", strtotime($nextDate) + 3600 * 24 * $interval);
                     }
                 }

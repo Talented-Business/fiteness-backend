@@ -13,7 +13,6 @@ use Carbon\Carbon;
 use App\Weight;
 use Mail;
 use App\Height;
-use App\Mail\NotifyNewCustomer;
 use App\Jobs\NotifyNonSubscriber;
 
 class User extends Authenticatable
@@ -111,6 +110,15 @@ class User extends Authenticatable
                 'provider_id' => $providerId
                 //'verify_code' => Str::random(32),
             ]);
+            if($provider == "google"){
+                $user->google_provider_id = $providerId;
+                $user->google_name = $record['first_name'].' '.$record['last_name'];
+            }
+            if($provider == "facebook"){
+                $user->facebook_provider_id = $providerId;
+                $user->facebook_name = $record['first_name'].' '.$record['last_name'];
+            }
+            $user->save();
             $condition = Condition::where('service_id',$serviceId)->skip($record['level']-1)->first();
             $customer = new Customer;
             $customer->first_name = $record['first_name'];
@@ -140,6 +148,12 @@ class User extends Authenticatable
                     $customer->coupon_id = $coupon->id;
                 }
             }
+            if(isset($record['invitationEmail'])){
+                $couponEmail = CouponEmail::find($record['invitationEmail']);
+                if($couponEmail && $couponEmail->used == "no"){
+                    $customer->coupon_id = $couponEmail->coupon_id;
+                }
+            }
             if($record['place'] == "Casa o Exterior")$customer->weights = "sin pesas";
             else $customer->weights = "con pesas";
             $heightValue = Height::convert($record['height'],$record['heightUnit'])/100;
@@ -148,7 +162,15 @@ class User extends Authenticatable
                 ($imc>=18.5 && $imc<25 && $record['goal']!="fit") || 
                 ($imc>=25 && $record['goal']!="cardio")) $customer->objective = $record['goal'];
             $customer->save();
-            NotifyNonSubscriber::dispatch($customer, new \App\Mail\NotifyNonSubscriber($customer))->delay(now()->addHours(24));
+            if($customer->coupon_id){
+                if(isset($couponEmail)){
+                    $couponEmail->used = "yes";
+                    $couponEmail->customer_id = $customer->id;
+                    $couponEmail->save();
+                }
+                $customer->setFreeSubscription();
+            }
+            //NotifyNonSubscriber::dispatch($customer, new \App\Mail\NotifyNonSubscriber($customer))->delay(now()->addHours(24)); //from task 1
             $adminEmails = User::adminEmail();//multi
             if(!empty($adminEmails)){
                 foreach($adminEmails as $email){
@@ -179,6 +201,14 @@ class User extends Authenticatable
         }        
     }
     public static function generateAcessToken($user){
+        $tokenResult = $user->createToken('Personal Access Token');
+        $token = $tokenResult->token;
+        $token->expires_at = Carbon::now()->addMinutes(30);
+        $token->save();
+        $user = self::findDetails($user);
+        return array($user,$tokenResult);
+    }
+    public static function findDetails($user){
         $hasWorkoutSubscription = false;
         $hasActiveWorkoutSubscription = false;
         if($user->customer){
@@ -208,6 +238,7 @@ class User extends Authenticatable
                 $user->customer['nextWorkoutPlan'] = $subscription->nextWorkoutPlan();
                 $user->customer['renewalOptions'] = $subscription->renewalOptions();
                 $user->customer['currentWorkoutMonths'] = $subscription->convertMonths();
+                $user->customer['currentWorkoutPaymentType'] = $subscription->gateway;
             }else{
                 $service =Service::find(1);
                 $s = ['serviceName'=>$service->title];
@@ -239,16 +270,21 @@ class User extends Authenticatable
             }
             $user['permissions'] = $result;
         }
-        $tokenResult = $user->createToken('Personal Access Token');
-        $token = $tokenResult->token;
-        $token->expires_at = Carbon::now()->addMinutes(30);
-        $token->save();
+        $user['referral_discount'] = Setting::getReferralDiscount();
         $user['has_workout_subscription']=$hasWorkoutSubscription;
         $user['has_active_workout_subscription']=$hasActiveWorkoutSubscription;
+        if($user->customer){
+            $userTimezone = new \DateTimeZone($user->customer->timezone);
+            $objDateTime = new \DateTime('NOW');
+            $objDateTime->setTimezone($userTimezone);
+            $time = $objDateTime->getTimestamp();
+            $user['current_date'] = ucfirst(iconv('ISO-8859-2', 'UTF-8', strftime("%A, %d de %B del %Y", $time)));
+        }
         $defaultCoupon = Coupon::whereCode(Coupon::DEFAULT)->first();
         if($defaultCoupon)$user['defaultCouponId'] = $defaultCoupon->id;
         if($user->customer){
             $heightValue = Height::convert($user->customer->current_height,$user->customer->current_height_unit)/100;
+            if($heightValue==0)$heightValue = Height::convert($user->customer->initial_height,$user->customer->initial_height_unit)/100;
             $user->customer['imc'] = round(Weight::convert($user->customer->current_weight,$user->customer->current_weight_unit)/$heightValue/$heightValue);
             if($user->avatar){
                 $user['avatarUrls'] = [
@@ -275,7 +311,7 @@ class User extends Authenticatable
                 }
             }
         }
-        return array($user,$tokenResult);
+        return $user;
     }
     public static function adminEmail(){
         $emails = [];

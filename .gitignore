@@ -1,6 +1,7 @@
 /node_modules
 /public/hot
 /database/seeds
+/database/seeds/UsersTableSeeder.php
 /public/storage
 /storage/*.key
 /vendor
@@ -11,4 +12,5 @@ Homestead.json
 Homestead.yaml
 npm-debug.log
 yarn-error.log
+backend.rar
 

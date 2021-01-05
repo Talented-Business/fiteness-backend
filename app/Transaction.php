@@ -28,6 +28,10 @@ class Transaction extends Model
     public function invoice(){
         return $this->hasOne('App\Invoice','transaction_id');
     }
+    public function scopePaid($query)
+    {
+        return $query->whereStatus('Completed')->where('total','>',0);
+    }
     public function search(){
         $where = Transaction::where(function($query){
             if($this->customer_name!=null){
@@ -85,7 +89,7 @@ class Transaction extends Model
         $transaction->content = 'nmi';
         $transaction->coupon_id = $subscription->coupon_id;
         $transaction->payment_subscription_id = $paymentSubscription->subscription_id;
-        $total = $paymentSubscription->nextPaymentAmount();
+        $total = $paymentSubscription->nextPaymentAmount($subscription->coupon);
         $transaction->total = $total;
         $transaction->done_date = date('Y-m-d H:i:s');
         $transaction->frequency = $subscription->convertFrequencyString($paymentSubscription->getFrequency());
@@ -105,11 +109,12 @@ class Transaction extends Model
                 $transaction->type = 1;
             break;
         }
+        $referralCoupon = Coupon::findCouponWithReferral($couponId,$customerId);
         $transaction->plan_id = $planId;
         $transaction->content = 'nmi renewal';
-        $transaction->coupon_id = $couponId;
+        if($referralCoupon)$transaction->coupon_id = $referralCoupon->id;
         $transaction->payment_subscription_id = $paymentSubscription->subscription_id;
-        $total = $paymentSubscription->nextPaymentAmount();
+        $total = $paymentSubscription->nextPaymentAmount($referralCoupon);
         $transaction->total = $total;
         $transaction->done_date = date('Y-m-d H:i:s');
         $subscription = new Subscription;

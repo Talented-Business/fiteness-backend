@@ -16,9 +16,13 @@ class Coupon extends Model
     const TRIAL_AFTER = 'trial_after';
     const RENEWAL = 'renewal';
     const FIRST_PAY = 'renewal';
-    const COUPON_URL = 'https://www.fitemos.com/pricing?coupon=';
-    const DEFAULT = 'prueba30';
-    protected $fillable = ['code','name','mail','discount','renewal','form'];
+    const COUPON_URL = '/pricing?coupon=';
+    const REFERRAL_URL = '/signup?referral=';
+    const EMAIL_INVITATION_URL = '/signup?ein=';
+    const DEFAULT = null;
+    const REFERRAL_NAME = 'referral';
+    const INVITATION_TYPES = ['InvitationEmail','InvitationCode'];
+    protected $fillable = ['code','name','type','mail','discount','renewal','form','expiration','max_user_count'];
     private $pageSize;
     private $statuses;
     private $pageNumber;
@@ -28,9 +32,11 @@ class Coupon extends Model
             'name'=>'required|max:255',
             'mail'=>'nullable|email|max:255',
             'discount'=>'nullable|numeric|max:100',
+            'expiration'=>'nullable',
+            'max_user_count'=>'nullable|integer',
         );
     }
-    private static $searchableColumns = ['search'];
+    private static $searchableColumns = ['search','type'];
     public function customers(){
         return $this->hasMany('App\Customer');
     }
@@ -50,11 +56,20 @@ class Coupon extends Model
                 $query->orWhere('mail','like','%'.$this->search.'%');
             }
         });
+        if($this->type){
+            if($this->type == 'invitations'){
+                $where->whereIn('type',Coupon::INVITATION_TYPES);
+            }else{
+                $where->where('type',$this->type);
+            }
+        }else{
+            $where->whereIn('type',['Public']);
+        }
         $currentPage = $this->pageNumber+1;
         Paginator::currentPageResolver(function () use ($currentPage) {
             return $currentPage;
         });      
-        $response = $where->orderBy('id', 'ASC')->whereType('Public')->paginate($this->pageSize);
+        $response = $where->orderBy('id', 'ASC')->paginate($this->pageSize);
         $items = $response->items();
         foreach($items as $index=> $coupon){
             $date = explode(' ',$coupon->created_at);
@@ -124,7 +139,7 @@ class Coupon extends Model
         $this->type = "Private";
         $this->discount = 30;
         $this->save();
-        $url = self::COUPON_URL.$this->code;
+        $url = env('APP_URL').self::COUPON_URL.$this->code;
         Mail::to($subscription->customer->email)->send(new CouponTrialBefore($subscription->customer->first_name,$url));
     }
     public function generatePrivateTrialAfter($subscription){
@@ -135,7 +150,7 @@ class Coupon extends Model
         $this->type = "Private";
         $this->discount = 30;
         $this->save();
-        $url = self::COUPON_URL.$this->code;
+        $url = env('APP_URL').self::COUPON_URL.$this->code;
         Mail::to($subscription->customer->email)->send(new CouponTrialAfter($subscription->customer->first_name,$url));
     }
     public static function scrape(){
@@ -158,8 +173,22 @@ class Coupon extends Model
     public function validate($customerId){
         if($this->status == 'Disabled') return false;
         if($this->type=='Public')return true;
+        if($this->type=='Referral')return true;
         if($this->customer_id == $customerId) return true;
         return false;
+    }
+    public static function findCouponWithReferral($id,$customerId){
+        if($id!=null){
+            $coupon = Coupon::find($id);
+            if($coupon && $coupon->status == "Active"){
+                if($coupon->type == "Referral"){
+                    if($coupon->customer->hasActiveSubscription())return $coupon;
+                }else {
+                    return $coupon;
+                }
+            }
+        }
+        return null;
     }
     public static function createRenewal($user){
         $service_id = 1;// for workouts
@@ -209,5 +238,35 @@ class Coupon extends Model
                 Mail::to($coupon->mail)->send(new CouponReport($active,$nonActive,$total,$coupon->name,$fromDate));
             }
         }
+    }
+    public function getDiscountedAmount($amount,$partnerDiscount,$transaction=null){
+        if ($this->renewal == 1) {
+            if($this->form=='%'){
+                if( $partnerDiscount && $this->discount < $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                else $amount = round($amount * (100 - $this->discount)/100,2); 
+            }
+            else {
+                if( $partnerDiscount && $this->discount < $partnerDiscount * $amount / 100 ){
+                    $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                }else $amount = round($amount - $this->discount,2);
+                if($amount<0) $amount = 0;
+            }
+        } else {
+            if ($transaction === null) {
+                if($this->form=='%'){
+                    if( $partnerDiscount && $this->discount < $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                    else $amount = round($amount * (100 - $this->discount)/100,2); 
+                }
+                else {
+                    if( $partnerDiscount && $this->discount < $partnerDiscount * $amount / 100 ){
+                        $amount = round($amount * (100 - $partnerDiscount)/100,2);
+                    }else $amount = round($amount - $this->discount,2);
+                    if($amount<0) $amount = 0;
+                }
+            }else{
+                if( $partnerDiscount ) $amount = round($amount * (100 - $partnerDiscount)/100,2);        
+            }
+        }
+        return $amount;
     }
 }

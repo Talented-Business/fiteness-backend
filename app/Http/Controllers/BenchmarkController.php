@@ -4,11 +4,15 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Benchmark;
+use App\Event;
 use App\BenchmarkResult;
 use Illuminate\Support\Facades\Validator;
 
 class BenchmarkController extends Controller
 {
+    public function __construct(){
+        $this->middleware('BenchmarkChangeData');
+    }
     public function store(Request $request)
     {
         $user = $request->user('api');
@@ -21,6 +25,9 @@ class BenchmarkController extends Controller
             if($request->hasFile('image')&&$request->file('image')->isValid()){ 
                 $photoPath = $request->image->store('photos');
                 $benchmark->image = $photoPath;
+                $fileNameUpdate = basename($photoPath);
+                $event = new Event;
+                $event->resizeImage('photos',$fileNameUpdate);
             }        
             $benchmark->assign($request);        
             $benchmark->save();
@@ -41,6 +48,9 @@ class BenchmarkController extends Controller
             if($request->hasFile('image')&&$request->file('image')->isValid()){ 
                 $photoPath = $request->image->store('photos');
                 $benchmark->image = $photoPath;
+                $fileNameUpdate = basename($photoPath);
+                $event = new Event;
+                $event->resizeImage('photos',$fileNameUpdate);
             }        
             $benchmark->assign($request);
             $benchmark->save();
@@ -49,17 +59,23 @@ class BenchmarkController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
-    public function show($id){
+    public function show($id,Request $request){
         $user = $request->user('api');
         if($user->can('benchmarks')){
             $benchmark = Benchmark::find($id);
             if($benchmark->image)  $benchmark->image = url('storage/'.$benchmark->image);
+            if($benchmark->post_date){
+                $benchmark['immediate'] = false;
+                $dates = explode(' ',$benchmark->post_date);
+                $benchmark['date'] = $dates[0];
+                $benchmark['datetime'] = substr($dates[1],0,5);
+            }
             return response()->json($benchmark);
         }else{
             return response()->json(['status'=>'failed'],403);
         }
     }
-    public function destroy($id){
+    public function destroy($id,Request $request){
         $user = $request->user('api');
         if($user->can('benchmarks')){
             $benchmark = Benchmark::find($id);
@@ -93,9 +109,11 @@ class BenchmarkController extends Controller
         }
     }
     public function published(Request $request){
-        $result = Benchmark::where('status','=','Publish')->get();
         $user = $request->user('api');
         $customer_id = $user->customer->id;
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
+        // $result = Benchmark::where('status','=','Publish')->where('post_date','>',$user->customer->created_at)->get();
+        $result = Benchmark::where('status','=','Publish')->get();
         foreach($result as $index=>$item){
             if($item->image)  $item->image = url('storage/'.$item->image);
             $benchmarkResult = BenchmarkResult::where('customer_id','=',$customer_id)->where('benchmark_id','=',$item->id)->orderBy('recording_date', 'DESC')->first();
@@ -104,24 +122,32 @@ class BenchmarkController extends Controller
         }
         return response()->json(['published'=>$result]);
     }
-    public function disable($id){
+    public function disable($id,Request $request)
+    {
         $user = $request->user('api');
         if($user->can('benchmarks')){
             $benchmark = Benchmark::find($id);
-            $benchmark->status = "Draft";
-            $benchmark->save();
-            return response()->json($benchmark);
+            if ($benchmark) {
+                $benchmark->status = 'Draft';
+                $benchmark->save();
+                return response()->json(['success' => 'success']);
+            }
+            return response()->json(['error' => 'error'], 422);
         }else{
             return response()->json(['status'=>'failed'],403);
         }
     }
-    public function active($id){
+    public function active($id,Request $request)
+    {
         $user = $request->user('api');
         if($user->can('benchmarks')){
             $benchmark = Benchmark::find($id);
-            $benchmark->status = "Publish";
-            $benchmark->save();
-            return response()->json($benchmark);
+            if ($benchmark) {
+                $benchmark->status = 'Publish';
+                $benchmark->save();
+                return response()->json(['success' => 'success']);
+            }
+            return response()->json(['error' => 'error'], 422);
         }else{
             return response()->json(['status'=>'failed'],403);
         }

@@ -47,6 +47,6 @@ class RenewalPaymentNotification extends Mailable
      */
     public function build()
     {
-        return $this->subject("¡Listo! Tu comprobante de renovación")->view('emails.payments.renewal');
+        return $this->subject("Comprobante de renovación")->view('emails.payments.renewal');
     }
 }

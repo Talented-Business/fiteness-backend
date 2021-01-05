@@ -63,6 +63,7 @@ class Service extends Model
         $memberships = $this->memberships;
         foreach($memberships as $membership){
             if($membership->type=="Paid")$paid = $membership;
+            if($membership->type=="Free")$free = $membership;
         }
         if(isset($paid)){
             $this['monthly'] = $paid->month_1;
@@ -75,6 +76,15 @@ class Service extends Model
             if($this['yearly'] == null)$this['yearly']="";
             $this['frequency'] = $paid->frequency;
             if($this['frequency'] == null)$this['frequency']="";
+            $this['bank_1'] = $paid->bank_1;
+            $this['bank_3'] = $paid->bank_3;
+            $this['bank_6'] = $paid->bank_6;
+            $this['bank_12'] = $paid->bank_12;
+            $this['bank_fee'] = $paid->bank_fee;
+        }
+        if(isset($free)){
+            $this['free_duration'] = $free->free_duration;
+            if($this['free_duration'] == null)$this['free_duration']="";
         }
         if($this->photo_path)  $this->photo_path = url('storage/'.$this->photo_path);
     }
@@ -96,6 +106,7 @@ class Service extends Model
         $memberships = $this->memberships;
         foreach($memberships as $membership){
             if($membership->type=="Paid")$paid = $membership;
+            if($membership->type=="Free")$free = $membership;
         }
         $savePaid = false;
         if($request->exists('monthly')){
@@ -119,7 +130,26 @@ class Service extends Model
         if($request->exists('frequency')){
             $paid->frequency = $request->input('frequency');
         }
+        if($request->exists('bank_1')){
+            $paid->bank_1 = $request->input('bank_1');
+        }
+        if($request->exists('bank_1')){
+            $paid->bank_3 = $request->input('bank_3');
+        }
+        if($request->exists('bank_1')){
+            $paid->bank_6 = $request->input('bank_6');
+        }
+        if($request->exists('bank_1')){
+            $paid->bank_12 = $request->input('bank_12');
+        }
+        if($request->exists('bank_fee')){
+            $paid->bank_fee = $request->input('bank_fee');
+        }
         if($savePaid)$paid->save();
+        if($free && $request->exists('free_duration')){
+            $free->free_duration = $request->input('free_duration');
+            $free->save();
+        }
     }
     public function assignSearch($request){
         foreach(self::$searchableColumns as $property){

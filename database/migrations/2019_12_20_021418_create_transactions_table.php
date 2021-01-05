@@ -15,7 +15,7 @@ class CreateTransactionsTable extends Migration
     {
         Schema::create('transactions', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->unsignedInteger('type');//0 nmi, 1 paypal
+            $table->unsignedInteger('type');//0 nmi, 1 paypal, 2 bank
             $table->string('content');
             $table->unsignedBigInteger('customer_id')->nullable();            
             $table->foreign('customer_id')

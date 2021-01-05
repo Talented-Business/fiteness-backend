@@ -18,8 +18,9 @@ use App\Shortcode;
 use App\PaymentTocken;
 use App\PaymentSubscription;
 use App\Transaction;
+use App\Setting;
+use App\CustomerShortcode;
 use Maatwebsite\Excel\Facades\Excel;
-use App\Exports\CustomersExport;
 
 class CustomerController extends Controller
 {
@@ -47,7 +48,8 @@ class CustomerController extends Controller
         $customer = Customer::find($id);
         $response = $customer->assign($request);
         if($response === true){
-            $user->customer->increaseRecord('edit_count');
+            $customer->increaseRecord('edit_count');
+            \App\Jobs\Activity::dispatch($customer);
             $customer->save();
             return response()->json(array('status'=>'ok','customer'=>$customer));
         }else{
@@ -121,6 +123,7 @@ class CustomerController extends Controller
         $user = $request->user('api');
         if($user&&$user->customer){
             $weights = $user->customer->latestWeights;
+            \App\Jobs\Activity::dispatch($user->customer);
             if(isset($weights[0])){
                 if($weights[0]->value != $user->customer->current_weight){
                     $user->customer->current_weight = $weights[0]->size;
@@ -143,7 +146,8 @@ class CustomerController extends Controller
         $id = $request->input('id');
         $weight = Weight::find($id);
         $weight->delete();
-        $user->customer->increaseRecord('edit_count');
+        if($user->customer)$user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
     public function updateWeight(Request $request){
@@ -156,7 +160,8 @@ class CustomerController extends Controller
         $weight->value = Weight::convert($weight->size, $unit);
         $weight->created_at=$request->input('date').' 00:00:00';
         $weight->save();
-        $user->customer->increaseRecord('edit_count');
+        if($user->customer)$user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
     public function storeWeight(Request $request){
@@ -170,6 +175,7 @@ class CustomerController extends Controller
         $weight->created_at=$request->input('date').' 00:00:00';
         $weight->save();
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
     public function conditions(){
@@ -187,6 +193,7 @@ class CustomerController extends Controller
             $user->customer->save();
         }
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
     public function previousCondition(Request $request){
@@ -196,6 +203,7 @@ class CustomerController extends Controller
             $user->customer->save();
         }
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
     public function changeCondition(Request $request){
@@ -207,6 +215,7 @@ class CustomerController extends Controller
             $user->customer->save();
         }
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
     public function changeObjective(Request $request){
@@ -215,6 +224,7 @@ class CustomerController extends Controller
         $user->customer->objective = $objective;
         $user->customer->save();
         $user->customer->increaseRecord('edit_count');
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->objective]);
     }
     public function changeWeights(Request $request){
@@ -222,224 +232,23 @@ class CustomerController extends Controller
         $weights = $request->input('weights');
         $user->customer->weights = $weights;
         $user->customer->save();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['weights'=>$user->customer->weights]);
     }
     public function recentWorkouts(Request $request){
         $user = $request->user('api');
         $workouts = $user->customer->recentWorkouts();
+        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['workouts'=>$workouts,'profile'=>$user->customer->findMedal()]);
-    }
-    private function calculateMonthDiff($firstDate,$secondDate){
-        $d1 = new \DateTime($firstDate);
-        $d2 = new \DateTime($secondDate);
-        $interval = $d2->diff($d1);
-        $year = $interval->format('%y');
-        $month = $interval->format('%m');
-        $day = $interval->format('%d');
-        return $year*12 + $month + round($day/30,2);
     }
     public function export(Request $request)
     {
         $user = $request->user('api');
-        $tenPercentCoupons = Coupon::whereType('Private')->whereDiscount('10')->whereForm('%')->get();
-        $tenPercentCouponsIds = [];
-        foreach($tenPercentCoupons as $tenPercentCoupon){
-            $tenPercentCouponsIds[] = $tenPercentCoupon->id;
-        }
         if($user->can('customers')){
             $customer = new Customer;
             $customer->assignSearch($request);
             $customers = $customer->searchAll();
-            $itemsArray = [];
-            $itemsArray[] = ['ID','Nombre','Last Name','Correo',
-            'Quiere verlo en el correo',//new active_email
-            'Whatsapp',
-            'Quiere recibir WA',//new active_whatsapp
-            'Código de entrada',
-            'PLAN DE SUSCRIPCIÓN',//new subscription frequency
-            'Cliente Pago',// new payment have?Si/No
-            'estado',//new status
-            'TARJETA PEGADA',//new payment card registered?Si/No
-            'TIPO DE PAGO',//new payment card type
-            'RECIBIENDO SERVICIO',//active subscription?Si/No
-            'FECHA REGISTRO',//Registration Date
-            'FECHA PRIMER PAGO',//First Payment Date
-            'MESES ENTRE PAGO Y REGISTRO',// new the count of months between registeration date and first payment date.
-            'FECHA CANCELACIÓN SUSCRIPCIÓN',//new cancellation date
-            'Cancellation',//cancellation reason
-            'Tiempo Activo En Suscripción Meses',//new the count of months of current active subscription
-            'Cantidad de Renovaciones',//new the count of renewaling
-            'MESES PAGADOS',//new the count of months paid
-            'MESES SERVICIO RECIBIDO',//new the count of months of using service
-            'MESES PARA RENOVACIÓN',//new remaining the count of months until next payment
-            'VENTAS ACUMULADAS',//new total money
-            'DESC SALIDA',//new 10% lifetime discount accept or no accept
-            'Sexo',//gender 
-            'Condición física',/*Condición Física Inicial*/'Condición Física Actual','Diferencia Nivel Físico',
-            'Lugar de Entrenamiento',//training_place
-            'Altura',//Height
-            'Peso Inicial','Peso Actual','Diferencia de Peso',
-            'IMC inicial','IMC actual','Diferencia IMC','Workouts Ingrsados','Objetivo',
-            'Edad','País',// country
-            'Click on videos','Click on email links','Click on Blogs',
-            'Tiempo activo en website','Actualizaciones totales dentro del perfil','contact request'
-            ];
-            $total = 0;
-            foreach($customers as $index=>$customer){
-                $customer->extends();
-                $status = '';
-                $frequencyString = '-';
-                $cancellationDate = null;
-                $currentActiveSubscriptionProgress = '';
-                $renewalCount = 0;
-                $cancelledNow = 'no';
-                $cancellationReason = '';
-                if($customer->user->active == 0){
-                    $status = "Disabled";
-                }else{
-                    $status = "Inactive";
-                    foreach($customer->subscriptions as $subscription){
-                        $frequencyString = $subscription->frequency;
-                        if($subscription->status == "Active"){
-                            $status = "Active";
-                            if($subscription->end_date)$status = "Leaving";
-                            $cancellationDate = $subscription->cancelled_date;
-                            $paymentSubscription = PaymentSubscription::whereSubscriptionId($subscription->transaction->payment_subscription_id)->first();
-                            if($paymentSubscription)$currentActiveSubscriptionProgress = $this->calculateMonthDiff($paymentSubscription->start_date,date('Y-m-d')).'m';
-                            if($subscription->plan_id == 1) $items[$index]['trial'] = 1;
-                            if($subscription->status == "Cancelled"){
-                                $status = "Cancelled";
-                            }
-                            $cancelledNow = $subscription->cancelled_now;
-                            $cancellationReason = $subscription->cancelled_reason;
-                        }
-                    }
-                }
-                $record = $customer->findRecord();
-                $objective = $customer->objective;
-                if($objective == 'auto'){
-                    $objText='strong';
-                    if($customer['imc']>25)$objText = "cardio";
-                    else if($customer['imc']>18.5)$objText = "fit";
-                    $objective = $objText.'(auto)';
-                }
-                $cards = PaymentTocken::whereCustomerId($customer->id)->get();
-                $cardRegistered = false;
-                $cardTypes = [];
-                if(count($cards)>0){
-                    $cardRegistered = true;
-                    foreach($cards as $card){
-                        if(in_array($card->type,$cardTypes)==false){
-                            $cardTypes[] = $card->type;
-                        }
-                    }
-                }
-                $firstDateDiff = '';
-                if($customer->first_payment_date){
-                    $firstDateDiff = $this->calculateMonthDiff($customer->first_payment_date,$customer->registration_date).'m';
-                }
-                $pay = null;
-                $firstTransaction = null;
-                $paidMonths = 0;
-                $transactions = Transaction::whereCustomerId($customer->id)->whereStatus('Completed')->orderBy('done_date','ASC')->get();
-                $lastPaymentSubscription=null;
-                $nextPaymentMonths = 0;
-                $consumedMonths = 0;
-                $total = 0;
-                $tenPercentcoupon = false;
-                foreach( $transactions as $transaction){
-                    if($firstTransaction==null){
-                        $firstTransaction = $transaction;
-                    }
-                    if($pay == null && $transaction->total>0){
-                        $pay = $transaction;
-                    }
-                    $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
-                    if($paymentSubscription){
-                        list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentSubscription->analyzeSlug();
-                        if($pay)$paidMonths = $paidMonths + $frequency;
-                        $lastPaymentSubscription = $paymentSubscription;
-                        $endDate = $paymentSubscription->getEndDate($transaction);
-                        if($cancellationDate && $cancelledNow == 'yes'){
-                            if( $endDate < $cancellationDate){
-                                $consumedMonths += $frequency;
-                            }else {
-                                $consumedMonths += $this->calculateMonthDiff($endDate,$cancellationDate);
-                            }
-                        }else{
-                            if( $endDate < date('Y-m-d H:i:s')){
-                                $consumedMonths += $frequency;
-                            }else {
-                                $consumedMonths += $this->calculateMonthDiff($endDate,date('Y-m-d H:i:s'));
-                            }
-                        } 
-                    }
-                    $total += $transaction->total;
-                    if(in_array($transaction->coupon_id,$tenPercentCouponsIds))$tenPercentcoupon = true;
-                }
-                if($lastPaymentSubscription && $lastPaymentSubscription->status == 'Active'){
-                    $paymentSubscriptionEndDate = $lastPaymentSubscription->findEndDate();
-                    if($paymentSubscriptionEndDate && $paymentSubscriptionEndDate>date('Y-m-d H:i:s')){
-                        $nextPaymentMonths = $this->calculateMonthDiff($paymentSubscriptionEndDate,date('Y-m-d H:i:s'));
-                    }
-                }
-                if($firstTransaction){
-                    $renewalCount = PaymentSubscription::whereCustomerId($customer->id)->where('start_date','>',$firstTransaction->done_date)->count();
-                    //if($renewalCount>0)$renewalCount-=1;
-                }
-                $itemsArray[] = [$customer->id,
-                    $customer->first_name,
-                    $customer->last_name,
-                    $customer->email,
-                    $customer->active_email?'Si':'No',
-                    $customer->whatsapp_phone_number,
-                    $customer->active_whatsapp?'Si':'No',
-                    $customer->coupon&&$customer->hasSubscription()?$customer->coupon->code:'',
-                    $frequencyString,
-                    $pay?'Si':'No',//'Cliente Pago', //new payment have?Si/No
-                    $status, //'ACTIVO / INACTIVO',//new status
-                    $cardRegistered?'Si':'No',//'TARJETA PEGADA',//new payment card registered?Si/No
-                    implode(',',$cardTypes),//'TIPO DE PAGO',//new payment card type
-                    $customer->hasActiveSubscription()?'Si':'No',//'RECIBIENDO SERVICIO',//active subscription?Si/No
-                    $customer->registration_date, //'FECHA REGISTRO',//Registration Date
-                    $customer->first_payment_date, //'FECHA PRIMER PAGO',//First Payment Date
-                    $firstDateDiff,// new the count of months between registeration date and first payment date.
-                    $cancellationDate,//new cancellation date
-                    $cancellationReason, // new cancellation reason
-                    $currentActiveSubscriptionProgress,//new the count of months of current active subscription
-                    $renewalCount,//new the count of renewaling
-                    $paidMonths,//new the count of total months paid
-                    $consumedMonths,//new the count of total months of using service
-                    $nextPaymentMonths,//new remaining the count of months until next payment
-                    $total,//new total money
-                    $tenPercentcoupon?'Si':'No',//new 10% lifetime discount accept or no accept
-                    $customer->gender=='Male'?'M':'S',
-                    $customer->initial_condition,
-                    $customer->current_condition,
-                    $customer->current_condition - $customer->initial_condition,
-                    $customer->training_place,
-                    $customer->current_height,
-                    $customer->initial_weight,
-                    $customer->current_weight,
-                    $customer->initial_weight - $customer->current_weight,
-                    $customer['initial_imc'],
-                    $customer['imc'],
-                    $customer['initial_imc'] - $customer['imc'],
-                    $record->benckmark_count,
-                    $objective,
-                    $customer['age'],
-                    $customer->country,
-                    $record->video_count,
-                    $record->email_count,
-                    $record->blog_count,
-                    $record->session_count?$record->session_count*10:null,
-                    $record->edit_count,
-                    $record->contact_count,
-                ];
-            }
-            $export = new CustomersExport([
-                $itemsArray
-            ]);
+            $export = Customer::export($customers);
             return Excel::download($export,'customers.xlsx');   
         }else{
             return response()->json(['status'=>'failed'],403);
@@ -448,7 +257,10 @@ class CustomerController extends Controller
     public function activity(Request $request){
         $column = $request->input('column');
         $user = $request->user('api');
-        if($user && $user->customer)$user->customer->increaseRecord($column);
+        if($user && $user->customer){
+            $user->customer->increaseRecord($column);
+            \App\Jobs\Activity::dispatch($user->customer);
+        }
         return response()->json(['status'=>'ok']);
     }
     public function link(Request $request){
@@ -457,7 +269,7 @@ class CustomerController extends Controller
             $shortcode = Shortcode::find($request->input('shortcode_id'));
             if($shortcode){
                 $exist = true;
-                $redirectLink = $shortcode->link;
+                $redirectLink = $shortcode->url;
             }
         }
         if(!$exist)$redirectLink = 'https://youtu.be/qcQJi0wb2Dg';
@@ -469,13 +281,81 @@ class CustomerController extends Controller
         }
         return Redirect::away($redirectLink);
     }
+    public function triggerWorkout(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            $user->customer->active_email=!$user->customer->active_email;
+            $user->customer->save();
+            \App\Jobs\Activity::dispatch($user->customer);
+            return response()->json(['status'=>$user->customer->active_email]);
+        }
+    }
     public function triggerNotifiable(Request $request){
         $user = $request->user('api');
         if($user->customer){
             $user->customer->notifiable=!$user->customer->notifiable;
             $user->customer->save();
+            \App\Jobs\Activity::dispatch($user->customer);
             return response()->json(['status'=>$user->customer->notifiable]);
         }
         return response()->json(['status'=>'failed'],403);
+    }
+    public function showReferralCoupon(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            $referralCoupon = $user->customer->findReferralCoupon();
+            \App\Jobs\Activity::dispatch($user->customer);
+            if($referralCoupon == null){
+                $referralCoupon = new Coupon;
+                $referralCoupon->type = "Referral";
+                $referralCoupon->customer_id = $user->customer->id;
+                $referralCoupon->name = "Referral";
+                $referralCoupon->code = "r".$user->customer->id;
+                $referralCoupon->discount = Setting::getReferralDiscount();
+                $referralCoupon->renewal = 1;
+                $referralCoupon->save();
+            }
+            return response()->json(['referralCoupon'=>$referralCoupon]);
+        }
+        return response()->json(['status'=>'failed'],403);
+    }
+    public function referral(Request $request){
+        $user = $request->user('api');
+        if($user->customer && $user->customer->hasActiveSubscription()){
+            $referralUrl = $user->customer->findReferralUrl();
+            \App\Jobs\Activity::dispatch($user->customer);
+            $discount = Setting::getReferralDiscount();
+            return response()->json(['referralUrl'=>$referralUrl,'discount'=>$discount]);
+        }
+        return response()->json(['status'=>'failed']);
+    }
+    public function partners(Request $request){
+        $user = $request->user('api');
+        if($user->customer && $user->customer->hasActiveSubscription()){
+            $partners = $user->customer->findPartners();
+            \App\Jobs\Activity::dispatch($user->customer);
+            return response()->json(['partners'=>$partners]);
+        }
+        return response()->json(['status'=>'failed']);
+    }
+    public function ccard(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            \App\Jobs\Activity::dispatch($user->customer);
+            $paymentToken = PaymentTocken::whereCustomerId($user->customer->id)->first();
+            if($paymentToken)return response()->json(['number'=>$paymentToken->last4]);
+        }
+        return response()->json(['number'=>false]);
+    }
+    public function alternateShortcode(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            $customerShortcode = CustomerShortcode::updateOrCreate(
+                ['customer_id' => $user->customer->id, 'shortcode_id' => $request->shortcode_id],
+                ['alternate_id' => $request->alternate_id]
+            );
+            return response()->json(['item'=>$customerShortcode]);
+        }
+        return response()->json(['status'=>false],401);
     }
 }
