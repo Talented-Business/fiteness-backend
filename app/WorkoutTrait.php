@@ -341,7 +341,7 @@ trait WorkoutTrait
                     $result = self::replaceDashboard($block['content'],$index,'content');
                     if(isset($title)){
                         if(isset($result[0]['tag']) && $result[0]['tag'] != 'h2'){
-                            $result = array_merge([['tag'=>'h2','content'=>$title]],$result);
+                            if($title)$result = array_merge([['tag'=>'h2','content'=>$title]],$result);
                         }
                     }
                     $blocks[$index]['content'] = $result;

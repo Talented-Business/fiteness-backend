@@ -935,6 +935,7 @@ class Customer extends Model
                     $cancelledNow = $subscription->cancelled_now;
                     $stars = $subscription->quality_level;
                     if($subscription->cancelled_radio_reason)$reason = Subscription::CANCELLED_REASONS[$subscription->cancelled_radio_reason].' '.$subscription->cancelled_radio_reason_text;
+                    if($reason == '') $reason = $subscription->cancelled_reason;
                     $feedback = $subscription->recommendation;
                     if($subscription->gateway == 'bank'){
                         $cardTypes[] = 'ACH';

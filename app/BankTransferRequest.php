@@ -118,7 +118,8 @@ class BankTransferRequest extends Model
                 $subscription->customer_id = $this->customer_id;
                 $subscription->coupon_id = $this->coupon_id;
                 $subscription->start_date = date('Y-m-d H:i:s');
-	        $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
+                $paymentSubscription = PaymentSubscription::whereSubscriptionId($this->transaction->payment_subscription_id)->first();
+                if($this->coupon)$this->customer->setFriendShip($this->coupon);
             }else{
                 if($subscription->status == 'Cancelled'){
                     $subscription->cancelled_now = null;
@@ -129,6 +130,7 @@ class BankTransferRequest extends Model
             $subscription->gateway = 'bank';
             $subscription->frequency = $this->frequency;
             $subscription->meta = PaymentPlan::createSlug($servicePlan, $this->customer_id, $this->coupon, $subscription->convertMonths($this->frequency),$subscription->gateway);
+            if($subscription->start_date == null)$subscription->start_date = date('Y-m-d H:i:s');
             $subscription->status = 'Active';
             $subscription->reminder_before_seven = 0;
             $subscription->reminder_before_one = 0;

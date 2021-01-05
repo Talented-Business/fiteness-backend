@@ -286,7 +286,7 @@ class FindTransactions extends Command
         $request = BankTransferRequest::find(7);
         $subscription = Subscription::whereCustomerId($request->customer_id)->wherePlanId($request->plan_id)->first();
         if($subscription){
-            Bank::scrape($subscription);
+            Bank::scraping($subscription);
         }
     }
     private function updateWorkout(){

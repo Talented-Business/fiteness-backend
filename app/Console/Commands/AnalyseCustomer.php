@@ -39,7 +39,15 @@ class AnalyseCustomer extends Command
      */
     public function handle()
     {
-        $this->getCustomersLeavingOneAgo();
+        $this->updateUsername();
+        // $this->getCustomersLeavingOneAgo();
+    }
+    private function updateUsername(){
+        $customers = Customer::all();
+        foreach($customers as $customer){
+            $customer->username = "user".$customer->id;
+            $customer->save();
+        }
     }
     private function getCurrentActiveCustomers(){
         $subscriptions = Subscription::whereStatus('Active')->whereNull('end_date')->get();

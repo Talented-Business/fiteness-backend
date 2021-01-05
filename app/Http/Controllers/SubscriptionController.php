@@ -133,6 +133,9 @@ class SubscriptionController extends Controller
         if($subscription->customer_id == $user->customer->id){
             switch($subscription->gateway){
                 case 'nmi':
+                    if($subscription->plan->type == 'Free'){
+                        $plan = SubscriptionPlan::where('service_id', '=', $subscription->plan->service_id)->where('type', '=', 'Paid')->first();
+                    }else $plan = $subscription->plan;
                     $paymentPlan = PaymentPlan::createOrUpdate($subscription->plan, $subscription->customer_id, $subscription->coupon, $frequency,'nmi');
                     $paymentSubscription = new PaymentSubscription;
                     if($subscription->end_date!=null){

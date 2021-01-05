@@ -21,7 +21,7 @@ class Bank
     public static function getEndDate($subscription){
         return $subscription->getExpirationTime();
     }
-    public static function scrape($subscription){
+    public static function scraping($subscription){
         $endDate = self::getEndDate($subscription);
         if(strtotime($endDate) < time() ){
             if($subscription->status =="Active"){

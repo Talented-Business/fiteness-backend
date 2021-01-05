@@ -29,7 +29,7 @@ class Subscription extends Model
         'expensive'=>'Muy costoso / no tengo tiempo',
         'other'=>'Otro',
     ];
-    const TRACK_CUSTOMER_IDS = [4584,5176,5266,5385,111];
+    const TRACK_CUSTOMER_IDS = [5622];
     public static function validateRules()
     {
         return array(
