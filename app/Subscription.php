@@ -29,7 +29,7 @@ class Subscription extends Model
         'expensive'=>'Muy costoso / no tengo tiempo',
         'other'=>'Otro',
     ];
-    const TRACK_CUSTOMER_IDS = [5622];
+    const TRACK_CUSTOMER_IDS = [6413, 6424, 6546, 6706, 7031, 7326, 7348, 7358, 7383, 7386, 7387, 7390, 7391, 7393, 7396, 7398, 7414, 7422, 7423, 7429, 7431, 7432, 7437];
     public static function validateRules()
     {
         return array(
@@ -249,7 +249,7 @@ class Subscription extends Model
                 $paypalPlan = PaymentPlan::wherePlanId($this->payment_plan_id)->first();
                 if ($paypalPlan) {
                     list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paypalPlan->analyzeSlug();
-                    $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+                    $intervalUnit = strtolower(config('app.interval_unit'));
                     $cycles = $frequency;
                     $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$cycles $intervalUnit"));
                     return $nextdatetime;
@@ -427,7 +427,7 @@ class Subscription extends Model
     }
     private function findLastPaymentSubscription($paymentSubscriptions)
     {
-        $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+        $intervalUnit = strtolower(config('app.interval_unit'));
         $startDate = null;
         $endDate = null;
         $lastPaymentSubscription = null;
@@ -514,9 +514,17 @@ class Subscription extends Model
                     if(in_array($this->customer_id, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- Payment subscription is null----");
                 }
             }
-            if ($this->end_date && $this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
-                $this->status = 'Cancelled';
-                $this->save();
+            if ($this->end_date ) {
+                if ($this->status !== 'Cancelled' && date("Y-m-d H:i:s")>=$this->end_date) {
+                    $this->status = 'Cancelled';
+                    $this->save();
+                }
+            } else {
+                if(strtotime($this->start_date) + ($this->plan->free_duration + 1)*3600*24<time() ){
+                    $this->status = 'Cancelled';
+                    $this->end_date = date('Y-m-d H:i:s');
+                    $this->save();                    
+                }
             }
             if($this->status == 'Cancelled' && $paymentSubscription){
                 $paymentSubscription->status = 'Cancelled';
@@ -666,18 +674,18 @@ class Subscription extends Model
     }
     private static function checkStatus()
     {
-        if(env('APP_ENV') == 'local'){
+        if(config('app.env') == 'local'){
             $customers = Customer::where(function ($query) {
                 $query->whereHas('user', function ($q) {
                     $q->where('active', '=', 1);
                 });
-            })->where('id',5763)->get();
+            })->whereIn('id',[6424])->get();
         }else{
             $customers = Customer::where(function ($query) {
                 $query->whereHas('user', function ($q) {
                     $q->where('active', '=', 1);
                 });
-            })->get();    
+            })->where('id',1730)->get();
         }
         $services = Service::all();
         foreach ($services as $service) {
@@ -744,7 +752,7 @@ class Subscription extends Model
             $cancelDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->cancelled_date)));
             $subscriptionEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->end_date)));
             Mail::to($this->customer->email)->send(new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));                    
-            Mail::to(env("MAIL_FROM_ADDRESS"))->send(new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$qualityLevel, self::CANCELLED_REASONS[$radioReason],$reasonText,$recommendation,$enableEnd));
+            Mail::to(config('mail.from.address'))->cc(['degracia.jf@gmail.com','sui201837@gmail.com'])->send(new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$qualityLevel, self::CANCELLED_REASONS[$radioReason],$reasonText,$recommendation,$enableEnd));
             $this->customer->removeFriendShip();
             return [true,$subscriptionEndDate];
         } else { //paid
@@ -770,8 +778,8 @@ class Subscription extends Model
                     setlocale(LC_ALL, "es_ES", 'Spanish_Spain', 'Spanish');
                     $cancelDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->cancelled_date)));
                     $subscriptionEndDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d de %B del %Y", strtotime($this->end_date)));
-                    Mail::to($this->customer->email)->send(new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));                    
-                    Mail::to(env("MAIL_FROM_ADDRESS"))->send(new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$qualityLevel, self::CANCELLED_REASONS[$radioReason],$reasonText,$recommendation,$enableEnd));
+                    Mail::to($this->customer->email)->send(new SubscriptionCancel($this->customer->first_name,$this->frequency,$cancelDate,$subscriptionEndDate));
+                    Mail::to(config('mail.from.address'))->cc(['degracia.jf@gmail.com','sui201837@gmail.com'])->send(new SubscriptionCancelAdmin($this->customer,$this->frequency,$cancelDate,$qualityLevel, self::CANCELLED_REASONS[$radioReason],$reasonText,$recommendation,$enableEnd));
                     $this->customer->removeFriendShip();
                     return [true,$subscriptionEndDate];
                 }
@@ -909,7 +917,7 @@ class Subscription extends Model
             $paypalPlan = PaymentPlan::wherePlanId($this->payment_plan_id)->first();
             if ($paypalPlan) {
                 list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paypalPlan->analyzeSlug();
-                $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+                $intervalUnit = strtolower(config('app.interval_unit'));
                 $endDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$frequency $intervalUnit")+$cycles*3600*24));
             }else{
                 $endDate = "";    
@@ -927,7 +935,7 @@ class Subscription extends Model
         $nextDates = [];
         $textsWithPrice = [];
         $nextRenewalStartDate = iconv('ISO-8859-2', 'UTF-8', strftime("%d/%B/%Y", $nextPaymentTime));
-        $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+        $intervalUnit = strtolower(config('app.interval_unit'));
         if($this->plan->type == "Free"){
             $plan = SubscriptionPlan::whereServiceId($this->plan->service_id)->whereType("Paid")->first();
         }else{

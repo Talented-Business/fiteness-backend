@@ -3,10 +3,14 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Maatwebsite\Excel\Facades\Excel;
+use Rap2hpoutre\FastExcel\FastExcel;
 use App\Customer;
 use Mail;
-
+function customersGenerator() {
+    foreach (Customer::cursor() as $customer) {
+        yield $customer;
+    }
+}
 class ExportCustomers extends Command
 {
     /**
@@ -41,12 +45,18 @@ class ExportCustomers extends Command
     public function handle()
     {
         //generate excel file for customers
-        $customers = Customer::all();
-        $export = Customer::export($customers);
-        $result = Excel::store($export, 'customers.xlsx', 'local');
-        $file = \Storage::disk('local')->path('customers.xlsx');
-        $exists = \Storage::disk('local')->exists('customers.xlsx');
-        //send mail
-        if($exists)Mail::to(env("MAIL_FROM_ADDRESS"))->send(new \App\Mail\CustomerExport());
+        $files = [];
+        $filePath = \Storage::disk('local')->path("customers.xlsx");
+        $tenPercentCoupons = \App\Coupon::whereType('Private')->whereDiscount('10')->whereForm('%')->get();
+        $tenPercentCouponsIds = [];
+        foreach($tenPercentCoupons as $tenPercentCoupon){
+            $tenPercentCouponsIds[] = $tenPercentCoupon->id;
+        }
+        (new FastExcel(customersGenerator()))->export($filePath, function ($customer) use ($tenPercentCouponsIds) {
+            return $customer->customerExport($tenPercentCouponsIds);
+        });
+        $files[] = \Storage::disk('local')->path("customers.xlsx");
+        
+        if(count($files)>0)Mail::to(config('mail.from.address'))->cc(['degracia.jf@gmail.com','sui201837@gmail.com'])->send(new \App\Mail\CustomerExport($files));
     }
 }

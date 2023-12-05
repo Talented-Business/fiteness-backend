@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\User;
+/**
+ * @group Admin User
+ *
+ * APIs for managing  admin users
+ */
 
 class AdminUserController extends Controller
 {
@@ -14,6 +19,14 @@ class AdminUserController extends Controller
     {
         $this->middleware(['permission:adminUsers']);
     }
+    /**
+     * create a admin user.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request){
         $validator = Validator::make($request->all(), array('email'=>['required','max:255','email','unique:users']));
         if ($validator->fails()) {
@@ -31,6 +44,14 @@ class AdminUserController extends Controller
         $user->assignRole($request->input('role'));
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    /**
+     * update a admin user.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
   
     public function update($id,Request $request){
         $validator = Validator::make($request->all(), array('email'=>['required','max:255','unique:users,email,'.$id]));
@@ -65,6 +86,14 @@ class AdminUserController extends Controller
         $user->save();
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    /**
+     * delete a admin user.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id){
         $user = User::find($id);
         if($user){
@@ -83,16 +112,40 @@ class AdminUserController extends Controller
         }        
         return response()->json($data);
     }
+    /**
+     * search admin users.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $model = new User;
         $model->assignSearch($request);
         $result = $model->search();
         return response()->json($result);
     }
+    /**
+     * show a admin user.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $user = User::find($id);
         return $user;
     }
+    /**
+     * disable a admin user.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function disable($id){
         DB::beginTransaction();
         try{
@@ -107,6 +160,14 @@ class AdminUserController extends Controller
         }
         return response()->json(['status'=>$status]);
     }
+    /**
+     * restore a admin user.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function restore($id){
         DB::beginTransaction();
         try{

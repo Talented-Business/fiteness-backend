@@ -3,10 +3,20 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Http\File;
+use Intervention\Image\ImageManagerStatic as Image;
+use Illuminate\Support\Facades\Cache;
 use App\Subscription;
 use App\PaymentSubscription;
 use App\Transaction;
 use App\Customer;
+use App\Models\Comment;
+use App\Models\Post;
+use App\Company;
 use App\Coupon;
 use App\Record;
 use App\User;
@@ -25,6 +35,10 @@ use App\Workout;
 use App\StaticWorkout;
 use App\Payment\Bank;
 use App\BankTransferRequest;
+use App\Done;
+use App\Models\Media;
+use Carbon\Carbon;
+use App\Mail\MailQueue;
 
 class FindTransactions extends Command
 {
@@ -86,8 +100,12 @@ class FindTransactions extends Command
             print_r($result);
         }
         if(false){
-            $customer = Customer::find(25);
-            $customer->changeCoupon(10);
+            $customer = Customer::find(3);
+            // $customer->changeCoupon(10);
+            [$friends, $non] = $customer->getPeople();
+            foreach($friends as $friend){
+                if(in_array($friend->id, [28, 46, 60, 111])){print_r($friend->id);print_r("@");}
+            }
         }
         if(false){
             $customers = Customer::all();
@@ -196,20 +214,27 @@ class FindTransactions extends Command
         if(false){
             $customer = Customer::whereEmail('degracia.jf@gmail.com')->first();
             if($customer){
-                $workout = $customer->getSendableWorkout(1);
-                if($workout){
-                    try{
-                        $customer->send($workout);
-                    }catch(\Exception $e){
-                        //print_r($e);
+                $workout = $customer->getSendableWorkout(-6);
+                // print_r($workout['blocks'][0]);
+                $text = '';
+                foreach($workout['blocks'] as $block){
+                    if($block['slug'] === 'comentario'){
+                        foreach($block['content'] as $content){
+                            if(isset($content['before_content']))$text .= $content['before_content'];
+                            if(isset($content['after_content']))$text .= $content['after_content'];
+                        }
                     }
                 }
+                print_r($text);
+                var_dump($workout['blog']);
             }
         }
         if(false){
             $subscription = Subscription::find(1021);
-            $time = $subscription->nextPaymentTime();
-            print_r($time);
+            if($subscription){
+                $subscription->cancelled_reason = "ok";
+                $subscription->save();
+            }
         }
         if(false){
             $transaction = Transaction::find(468);
@@ -274,12 +299,263 @@ class FindTransactions extends Command
         if(false){
             $this->updateShortCodes();
         }
-        if(true){
-            // $this->updateWorkout();
+        if(false){
+            $this->updateWorkout();
             $this->updateStaticWorkout();
         }
         if(false){
             $this->bankReminder();
+        }
+        if(false){
+            $this->checkDoneWorkouts();
+        }
+        if(false){
+            $this->findMedal();
+        }
+        if(false){
+            $this->deleteComments();
+        }
+        if(false){
+            $this->checkCarbon();
+        }
+        if(false){
+            $this->checkVideo();
+        }
+        if(false){
+            $this->testingCache();
+        }
+        if(false){
+            $this->generateBirthdayPosts();
+        }
+        if(false){
+            $this->generateArticlePosts();
+        }
+        if(false){
+            $this->likeNotification();
+        }
+        if(false){
+            $this->generateJoinPost();
+        }
+        if(false){
+            $this->generateWorkoutPost();
+        }
+        if(false){
+            $comment = Comment::find(80);
+            $customer = Customer::find(15);
+            \App\Jobs\CommentOnPost::dispatch($comment, $customer);
+        }
+        if(false){
+            $this->doneTest();
+        }
+        if(false){
+            $this->checkLogging();
+        }
+        if(false){
+            $this->getCustomerIds();
+        }
+        if(false){
+            $this->isFirstTransaction();
+        }
+        if(false){
+            $this->sendFollowingEmail();
+        }
+        if(false){
+            $this->exportCustomers();
+        }
+        if(true){
+            $this->timeCalculate();
+        }
+    }
+    private function timeCalculate(){
+        $subscription = Cache::get('1');
+        $timeDiff = -14 * 24 + 1;
+        if($timeDiff >= -14 * 24 && $timeDiff <= -14 * 24 + 1 && $subscription == null){
+            //notification;
+            var_dump($timeDiff);
+            Cache::put('1', '2', 3600);
+        }
+    }
+    private function exportCustomers(){
+        // \App\Jobs\ExportCustomers::dispatch('300', '', 'all');
+        $job = new \App\Jobs\ExportCustomers('300', 'sincooh19@gmail.com', 'all');
+        $job->handle();
+    }
+    private function sendFollowingEmail(){
+        $customers = Customer::all();
+        $i = 0;
+        foreach($customers as $customer){
+            $follows = DB::table("follows")->select("*")->where('customer_id',$customer->id)->get();
+            if($follows->count()>0){
+                if(!$customer->hasActiveSubscription()){
+                    $userCustomer = Customer::find($follows[0]->follower_id);
+                    var_dump($customer->first_name);
+                    $data = ['sender_first_name'=>$userCustomer->first_name,'receiver_first_name'=>$customer->first_name,'email'=>$customer->email,'view_file'=>'emails.customers.following','subject'=>$customer->first_name.' y otras personas te empezaron a seguir en Fitemos'];
+                    Mail::to($customer->email, $customer->first_name.' '.$customer->last_name)->queue(new MailQueue($data));
+                    $i++;
+                }    
+            }
+        }
+        var_dump($i);
+    }
+    private function isFirstTransaction(){
+        $customers = Customer::all();
+        $ids = [11, 34, 44, 67];
+        // foreach($customers as $customer){
+        foreach($ids as $id){
+            $customer = Customer::find($id);
+            $transaction = Transaction::whereCustomerId($customer->id)->first();
+            if(Transaction::whereCustomerId($customer->id)->count() === 1){
+                echo 'customer';
+                var_dump($customer->id);
+                $result = $customer->isFirstTransaction($transaction);
+                var_dump($result);
+            }
+        }
+    }
+    private function getCustomerIds(){
+        $transactions = DB::table('transactions')
+                ->select('customer_id')
+                ->where('status','Declined')
+                ->where('id','>','6673')
+                ->get();
+        foreach($transactions as $transaction){
+            print_r($transaction->customer_id);
+            print_r(",");
+        }
+    }
+    private function checkLogging(){
+        Log::channel('nmiPayments')->info("Info: Start");
+        Log::channel('nmiPayments')->error("Info: Start");
+        Log::channel('nmiRequests')->info("----Response----\n\n");
+        Log::channel('nmiRequests')->error("----Response----\n\n");
+    }
+    private function doneTest(){
+        print_r(config('app.interval_unit'));
+        var_dump(env('INTERVAL_UNIT'));
+    }
+    private function generateWorkoutPost(){
+        $customer = Customer::find(3);
+        // $startDate = Carbon::createFromFormat('Y-m-d H:i:s', "2021-02-24 19:01:00", 'America/Panama');
+        // $endDate = Carbon::createFromFormat('Y-m-d H:i:s', "2021-02-22 19:00:00", 'America/Panama');
+        $post = $customer->generateWorkoutPost();
+        print_r($post);
+    }
+    private function generateJoinPost(){
+        $activity = new \App\Models\Activity;
+        $activity->save();
+        $post = new \App\Models\Post;
+        $post->fill(['activity_id'=>$activity->id,'customer_id'=>0,'type'=>'join','object_id'=>5882]);
+        \App\Models\Post::withoutEvents(function () use ($post) {
+            $post->status = 1;
+            $post->save();
+        });
+    }
+    private function likeNotification(){
+        $activityId = 154;
+        $user = User::find(11);
+        $post = Post::whereActivityId($activityId)->first();
+        if($post && $post->customer_id != $user->customer->id){
+            if($post->customer_id>0)\App\Models\Notification::likePost($post->customer_id, $user->customer, $post);
+        }
+    }
+    private function generateArticlePosts(){
+        $event = \App\Company::find(22);
+        $activity = new \App\Models\Activity;
+        $activity->save();
+        $post = new Post;
+        $post->fill(['activity_id'=>$activity->id,'customer_id'=>0,'type'=>'shop','object_id'=>$event->id]);
+        Post::withoutEvents(function () use ($post) {
+            $post->status = 1;
+            $post->save();
+        });
+    }
+    private function generateBirthdayPosts(){
+        $customer = Customer::find(3);
+        // $firstDate = "2021-03-05 2:30:00";
+        // $firstDate = Carbon::createFromFormat('Y-m-d H:i:s', $firstDate, 'America/Panama');
+        // $secondDate = Carbon::createFromFormat('Y-m-d H:i:s', $firstDate, 'America/Panama');
+        // $secondDate->add('2','day');
+        // $secondDate->add('5','hour');
+        $posts = $customer->getNewsfeed(-1, 1);
+        // print_r($posts);
+    }
+    private function testingCache(){
+        // Cache::forget('activeCustomerIds');
+        if(Cache::has('activeCustomerIds')){
+            $value = Cache::get('activeCustomerIds');
+            var_dump($value);
+        }else{
+            // Cache::forever('activeCustomerIds', [1,2,3,4,5,6,7,8,9,10]);    
+            Cache::add('activeCustomerIds', [1,2,3,4,5,6,7,8,9,10], 10);
+        }
+    }
+    private function checkVideo(){
+        $video = new File(storage_path('app/files/25.qt'));
+        print_r($video->getMimeType());
+    }
+    private function checkCarbon(){
+        $doneDate = "2021-03-05 2:30:00";
+        $dt = Carbon::createFromFormat('Y-m-d H:i:s', $doneDate, 'America/Panama');
+        $dt->sub('1 day');
+        $now =  Carbon::now();
+        $datatime = iconv('ISO-8859-2', 'UTF-8', strftime("%B %d, %Y ", strtotime($doneDate))).date(" h:i a",strtotime($doneDate));
+        if($now->lessThan($dt)){
+            print_r($datatime);
+            \App\Jobs\EventAttend::dispatch(3,1, $doneDate)->delay($dt);
+        }
+    }
+    private function deleteComments(){
+        $comments = Comment::all();
+        foreach($comments as $comment){
+            $comment->activity->delete();
+            $comment->delete();
+        }
+    }
+    private function findMedal(){
+        $customer = Customer::find(3);
+        $object = $customer->findMedal();
+        print_r($object);
+    }
+    private function checkDoneWorkouts(){
+        $customers = Customer::whereIn('id',[3])->get();
+        foreach($customers as $customer){
+            $begin = new \DateTime('2020-05-11');
+            $end = new \DateTime('2021-01-17');
+
+            $interval = \DateInterval::createFromDateString('1 day');
+            $period = new \DatePeriod($begin, $interval, $end);
+            $dones = Done::whereCustomerId($customer->id)->get();
+            if($dones->count()>0){
+                foreach($dones as $index=>$done){
+                    if($done->id == 14822){
+                        print_r($customer->id."-");
+                        print_r("\n");
+                    }
+                    if($done->done_date == '0000-00-00'){
+                        print_r($customer->id."-");
+                        print_r("\n");
+                        $done->delete();
+                    }
+                }
+                foreach ($period as $dt) {
+                    $date = $dt->format("Y-m-d");
+                    $dones = Done::whereCustomerId($customer->id)->whereDoneDate($date)->get();
+                    if($dones->count()>1){
+                        print_r($customer->id."-".$date);
+                        print_r("\n");
+                        foreach($dones as $index=>$done){
+                            if($done->done_date == '0000-00-00'){
+                                $done->delete();
+                            }
+                            if($index>0){
+                                $done->delete();
+                                // print_r($index);
+                            }
+                        }
+                        print_r("\n");
+                    }
+                }                
+            }
         }
     }
     private function bankReminder(){

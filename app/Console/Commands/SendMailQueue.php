@@ -14,7 +14,7 @@ class SendMailQueue extends Command
      *
      * @var string
      */
-    protected $signature = 'send:mail';
+    protected $signature = 'send:mail1';
 
     /**
      * The console command description.

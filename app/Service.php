@@ -86,7 +86,7 @@ class Service extends Model
             $this['free_duration'] = $free->free_duration;
             if($this['free_duration'] == null)$this['free_duration']="";
         }
-        if($this->photo_path)  $this->photo_path = url('storage/'.$this->photo_path);
+        if($this->photo_path)  $this->photo_path = secure_url('storage/'.$this->photo_path);
     }
     public function findWorkoutDates($year){
         return Workout::findDates($year);

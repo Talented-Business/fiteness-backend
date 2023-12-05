@@ -12,12 +12,24 @@ use App\Subscription;
 use App\Coupon;
 use App\Payment\Bank;
 use App\Mail\BankRequest;
+/**
+ * @group Bank Transfer
+ *
+ * APIs for managing  bank transfer
+ */
 
 class BankTransferController extends Controller
 {
     /**
+     * checkout bank transfer.
+     * 
+     * This endpoint.
      * plan_id = 2 for service_id = 1
+     * @authenticated
+     * @response {
+     * }
      */
+
     public function checkout(Request $request)
     {
         $user = $request->user('api');
@@ -45,15 +57,39 @@ class BankTransferController extends Controller
         Mail::to($user->email)->send(new BankRequest($user->customer,$duration,$amount, $bankFee));
         return response()->json(['status'=>'ok','request'=>$model]);
     }
+    /**
+     * show a bank transfer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $bankTransferRequest = BankTransferRequest::find($id);
         return response()->json($bankTransferRequest);
     }
+    /**
+     * search bank transfers.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $bankTransferRequest = new BankTransferRequest;
         $bankTransferRequest->assignSearch($request);
         return response()->json($bankTransferRequest->search());
     }
+    /**
+     * approve a bank transfer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function approve($id,Request $request){
         $user = $request->user('api');
         if($user->can('transactions')){
@@ -64,6 +100,7 @@ class BankTransferController extends Controller
                 $transaction = $bankTransferRequest->createTransaction();
                 if($transaction){
                     $bankTransferRequest->transaction_id = $transaction->id; 
+                    $bankTransferRequest->done_date = date("Y-m-d H:i:s");
                     $bankTransferRequest->save();
                     $bankTransferRequest->refresh();
                     $bankTransferRequest->createOrUpdateSuscription();
@@ -79,6 +116,14 @@ class BankTransferController extends Controller
         }
         return response()->json(['status'=>'failed','message'=>'forbidden action'],404);
     }
+    /**
+     * reject a bank transfer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function reject($id,Request $request){
         $user = $request->user('api');
         if($user->can('transactions')){
@@ -89,6 +134,14 @@ class BankTransferController extends Controller
         }
         return response()->json(['status'=>'failed','message'=>'forbidden action'],404);
     }
+    /**
+     * restore a bank transfer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function restore($id,Request $request){
         $user = $request->user('api');
         if($user->can('transactions')){

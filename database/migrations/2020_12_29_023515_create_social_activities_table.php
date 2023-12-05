@@ -15,7 +15,7 @@ class CreateSocialActivitiesTable extends Migration
     {
         Schema::create('social_activities', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->integer('likes');
+            $table->integer('likes')->default(0);
         });
     }
 

@@ -9,17 +9,21 @@ use Intervention\Image\ImageManagerStatic;
 use Illuminate\Support\Facades\DB;
 class Company extends Model
 {
-    protected $fillable = ['name','description','phone','mail','is_all_countries','mobile_phone','website_url','address','facebook','instagram','twitter','horario'];    
+    protected $fillable = ['username','name','description','phone','mail','is_all_countries','mobile_phone','website_url','address','facebook','instagram','twitter','horario'];    
     private $pageSize;
     private $pageNumber;
     private $search;
     private $countryCode;
     private $expirationDate;
     private static $searchableColumns = ['search'];
+    public const NOT_IN="workout,home,shop,benchmarks,partners,profile,profile, perfil,level,subscriptions,customers,
+        search,search-people,search-shops,search-posts,pricing,checkout,settings,news,posts,ayuda,contact,terms_and_condition,
+        privacy,cookies,newsfeed,leaderboard,eventos,auth, miembros";
     public static function validateRules($id=null){
         $upload=explode('M',ini_get('upload_max_filesize'));
         $uploadMaxSize = $upload[0]*1024;
         return array(
+            'username'=>'required|unique:companies,username,'.$id.'|unique:customers,username|not_in:'.Company::NOT_IN,
             'name'=>'required|max:255|unique:companies,name,'.$id,
             'description'=>'required',
             'mail'=>'required|email|unique:companies,mail,'.$id,
@@ -33,7 +37,7 @@ class Company extends Model
     public function getImageSize($logo,$size) 
     {
         $image =  implode('-' . Setting::IMAGE_SIZES[$size] . '.', explode('.', $logo));
-        $imagePath = url('storage/'.$image);
+        $imagePath = secure_url('storage/'.$image);
         return $imagePath;
     }
     public function products(){
@@ -101,7 +105,7 @@ class Company extends Model
         $this->countryCode = $user->customer->country_code;
         $this->expirationDate = $user->customer->currentDate();
         $this->search = null;
-        $this->status = 'Publish';
+        // $this->status = 'Publish';
         $this->pageSize = $request->input('pageSize');
         $this->pageNumber = $request->input('pageNumber');
     }
@@ -110,6 +114,7 @@ class Company extends Model
         $where = Company::whereHas('countries',function($query){
             $query->where('country','=',strtoupper($this->countryCode));
             })
+            ->whereStatus('active')
             ->where('is_all_countries','=','no')
             ->orWhere('is_all_countries','=','yes')
             ->whereHas('products',function($query){
@@ -124,9 +129,15 @@ class Company extends Model
         $items = $response->items();
         foreach ($items as $index => $item){
             //print_r($item->logo);die;
-            $items[$index]->logo = url("storage/".$item->logo);
+            $items[$index]->logo = secure_url("storage/".$item->logo);
         }
         // dd(DB::getQueryLog());
         return $response;
+    }
+    public function uploadMedia($file){
+        $media = new \App\Models\Media;
+        $media->attachment="other";
+        $media->uploadSingle($file);
+        $this->post_image_id = $media->id;
     }
 }

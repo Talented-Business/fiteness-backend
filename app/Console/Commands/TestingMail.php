@@ -41,6 +41,6 @@ class TestingMail extends Command
     public function handle()
     {
         $data = ['first_name'=>"testing first",'last_name'=>"testing last",'email'=>"testing@gmail.com",'gender'=>"Female",'view_file'=>'emails.customers.create','subject'=>'Checkout Completed'];
-        Mail::to("sui201837@gmail.com", env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
+        Mail::to("sui201837@gmail.com", config('mail.from.name'))->queue(new MailQueue($data));
     }
 }

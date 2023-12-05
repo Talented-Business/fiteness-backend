@@ -29,15 +29,15 @@ class RenewalPaymentBankReminder extends Mailable
         switch($type){
             case "before_seven":
                 $this->days = 7;
-                $this->url = env("APP_URL").'/pricing?renewal=bank';
+                $this->url = config('app.url').'/pricing?renewal=bank';
                 break;
             case "before_one":
                 $this->days = 1;
-                $this->url = env("APP_URL").'/pricing?renewal=bank';
+                $this->url = config('app.url').'/pricing?renewal=bank';
                 break;    
             case "after_one":
                 $this->days = 1;
-                $this->url = env("APP_URL").'/pricing';
+                $this->url = config('app.url').'/pricing';
                 break;    
         }
     }

@@ -3,19 +3,34 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Http\File;
 //use App\Rules\UniqueEmail;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use App\User;
 use App\Customer;
 use App\Session;
+use App\Company;
 use Twilio\Rest\Client;
 use Google_Client;
 use Vinkla\Facebook\Facades\Facebook;
 
+/**
+ * @group User   
+ *
+ * APIs for managing  user
+ */
 
 class UserController extends Controller
 {
+    /**
+     * create a user.
+     * 
+     * This endpoint lets you create your user.
+     * @authenticated
+     * @response {
+     * }
+     */
 
     public function store(Request $request){
         $validator = Validator::make($request->all(), array('email'=>['required','max:255','email','unique:users']));
@@ -37,9 +52,12 @@ class UserController extends Controller
     }
   
     /**
-     * Get the authenticated User
-     *
-     * @return [json] user object
+     * find a user by token.
+     * 
+     * This endpoint lets you find user with token.
+     * @authenticated
+     * @response {
+     * }
      */
     public function findByToken(Request $request)
     {
@@ -53,6 +71,14 @@ class UserController extends Controller
             return null;
         }
     }
+    /**
+     * generate token.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function generateAccessToken(Request $request){
         $user = $request->user('api');
         $oldToken = $request->user('api')->token();
@@ -70,6 +96,14 @@ class UserController extends Controller
             'user' => $user
         ]);
     }
+    /**
+     * find me.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function me(Request $request){
         $user = $request->user('api');
         $me = User::findDetails($user);
@@ -77,6 +111,14 @@ class UserController extends Controller
             'user' => $me
         ]);
     }
+    /**
+     * update my profile.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request){
         $validator = Validator::make($request->all(), array('email'=>['required','max:255','unique:users,email,'.$id]));
         if ($validator->fails()) {
@@ -114,6 +156,14 @@ class UserController extends Controller
         $user->save();
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    /**
+     * update email.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function updateEmail(Request $request){
         $user = $request->user('api');
         $validator = Validator::make($request->all(), array('email'=>['required','max:255','unique:users,email,'.$user->id]));
@@ -132,6 +182,14 @@ class UserController extends Controller
         }
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    /**
+     * update password.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function updatePassword(Request $request){
         $user = $request->user('api');
         if($request->exists('password')){
@@ -143,21 +201,46 @@ class UserController extends Controller
         }
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    /**
+     * update avatar image.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function updateImage(Request $request){
         $user = $request->user('api');
         if($user&&$request->hasFile('image')&&$request->file('image')->isValid()){ 
             $photoPath = $request->image->store('media/user');
             $file = storage_path('app/public/'.$photoPath);
-            //$this->cropImage($file,200,200,$file);
             if(PHP_OS == 'Linux'){
                 $output = shell_exec("mogrify -auto-orient $file");
                 sleep(1);
             }
+            $this->cropImage($photoPath);
             $user->avatar = $photoPath;
             $user->save();
         }        
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    /**
+     * update customer info.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @bodyParam first_name string required
+     * @bodyParam last_name string required
+     * @bodyParam username string required
+     * @bodyParam gender string required
+     * @bodyParam current_height string required
+     * @bodyParam whatsapp_phone_number string required
+     * @bodyParam country string required
+     * @bodyParam country_code string required
+     * @bodyParam description string
+     * @response {
+     * }
+     */
     public function customerUpdate(Request $request){
         $user = $request->user('api');
         $validator = Validator::make($request->all(), Customer::validateUserSettingRules($user->id,$user->customer->id));
@@ -166,6 +249,7 @@ class UserController extends Controller
         }
         $user->name = $request->input('first_name').' '.$request->input('last_name');
         $user->save();
+        $user->customer->username = $request->input('username');
         $user->customer->first_name = $request->input('first_name');
         $user->customer->last_name = $request->input('last_name');
         $user->customer->gender = $request->input('gender');
@@ -173,7 +257,8 @@ class UserController extends Controller
         $user->customer->whatsapp_phone_number = $request->input('whatsapp_phone_number');
         $user->customer->country = $request->input('country');
         $user->customer->country_code = $request->input('country_code');
-        if($user->customer->active_whatsapp && $user->customer->whatsapp_phone_number&&getenv("APP_ENV")!="local"){
+        $user->customer->description = $request->input('description');
+        if($user->customer->active_whatsapp && $user->customer->whatsapp_phone_number&&config('app.env')!="local"){
             $twilio = new Client(config('services.twilio.sid'), config('services.twilio.token'));
             try{
                 $phoneNumber =  $twilio->lookups->v1->phoneNumbers($user->customer->whatsapp_phone_number)->fetch();
@@ -185,64 +270,35 @@ class UserController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    /**
+     * delete avatar image.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function deleteImage(Request $request){
         $user = $request->user('api');
         $user->avatar = null;
         $user->save();
         return response()->json(array('status'=>'ok','user'=>$user));
     }
-    private function cropImage($sourcePath, $width=200,$height=230, $destination = null) {
-
-        $parts = explode('.', $sourcePath);
-        $ext = $parts[count($parts) - 1];
-        if ($ext == 'jpg' || $ext == 'jpeg') {
-          $format = 'jpg';
-        } else {
-          $format = 'png';
-        }
-      
-        if ($format == 'jpg') {
-          $sourceImage = imagecreatefromjpeg($sourcePath);
-        }
-        if ($format == 'png') {
-          $sourceImage = imagecreatefrompng($sourcePath);
-        }
-      
-        list($srcWidth, $srcHeight) = getimagesize($sourcePath);
-      
-        // calculating the part of the image to use for thumbnail
-        if ($srcWidth > $srcHeight) {
-          $y = 0;
-          $x = ($srcWidth - $srcHeight) / 2;
-          $smallestSide = $srcHeight;
-        } else {
-          $x = 0;
-          $y = ($srcHeight - $srcWidth) / 2;
-          $smallestSide = $srcWidth;
-        }
-      
-        $destinationImage = imagecreatetruecolor($width, $height);
-        imagecopyresampled($destinationImage, $sourceImage, 0, 0, $x, $y, $width, $height, $smallestSide, $smallestSide);
-      
-        if ($destination == null) {
-          header('Content-Type: image/jpeg');
-          if ($format == 'jpg') {
-            imagejpeg($destinationImage, null, 100);
-          }
-          if ($format == 'png') {
-            imagejpeg($destinationImage);
-          }
-          if ($destination = null) {
-          }
-        } else {
-          if ($format == 'jpg') {
-            imagejpeg($destinationImage, $destination, 100);
-          }
-          if ($format == 'png') {
-            imagepng($destinationImage, $destination);
-          }
-        }
+    private function cropImage($filePath,  $width=60,$height=60) {
+        $data = pathinfo($filePath);
+        $image = new File(storage_path('app/public/'.$filePath));      
+        $avatarFile = $data['dirname']."/avatar/".$data['filename'].".".$data['extension'];
+        $resizeImg = \App\Models\Media::makeCroppedImage($image, [$width, $height]);
+        $resizeImg->save(storage_path('app/public/'). $avatarFile);
     }
+    /**
+     * update email active.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function emailUpdate(Request $request){
         $user = $request->user('api');
         $validator = Validator::make($request->all(), Customer::validateMailSettingRules($user->id,$user->customer->id));
@@ -268,6 +324,14 @@ class UserController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(array('status'=>'ok','user'=>$user));
     }
+    /**
+     * delete user.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id){
         $user = User::find($id);
         if($user){
@@ -286,25 +350,57 @@ class UserController extends Controller
         }        
         return response()->json($data);
     }
+    /**
+     * show the user.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $user = User::find($id);
         return $user;
     }
+    /**
+     * remove google account.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function removeGoogle(Request $request){
         $user = $request->user('api');
         $user->google_provider_id = null;
         $user->google_name = null;
         $user->save();
     }
+    /**
+     * remove facebook account.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function removeFacebook(Request $request){
         $user = $request->user('api');
         $user->facebook_provider_id = null;
         $user->facebook_name = null;
         $user->save();
     }
+    /**
+     * add google account.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function addGoogle(Request $request){
         $user = $request->user('api');
-        $client = new Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);  // Specify the CLIENT_ID of the app that accesses the backend
+        $client = new Google_Client(['client_id' => config('services.google.client_id')]);  // Specify the CLIENT_ID of the app that accesses the backend
         $payload = $client->verifyIdToken($request->input('id_token'));
         if($payload){
             $user->google_provider_id = $payload['sub'];
@@ -320,6 +416,14 @@ class UserController extends Controller
         ],401);
         
     }
+    /**
+     * add facebook account.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function addFacebook(Request $request){
         $user = $request->user('api');
         $response = Facebook::get('/me?&fields=first_name,last_name,email', $request->input('id_token'));

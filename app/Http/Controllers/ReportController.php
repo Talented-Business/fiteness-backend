@@ -11,14 +11,28 @@ use App\Activity;
 use App\ActivityWorkout;
 use App\Workout;
 use App\Done;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
+/**
+ * @group Report   
+ *
+ * APIs for managing  report
+ */
 
 class ReportController extends Controller
 {
     public function __construct()
     {
-        $this->middleware(['permission:settings']);
+        $this->middleware(['permission:settings'])->except("customerWorkouts", "customerWorkoutsRange");;
     }
+    /**
+     * get customer report.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function customers(Request $request){
         $fromDate = $request->input("from");
         $nextDate = $fromDate;
@@ -33,7 +47,7 @@ class ReportController extends Controller
             $reports['clients_users'][$nextDate] = 0;
             $nextDate = date("Y-m-d",strtotime($nextDate) + 3600*24);
         }
-        $customers = Customer::where('created_at','>',$fromDate." 00:00:00")->where('created_at','<=',$toDate." 00:00:00")->get();
+        $customers = Customer::where('created_at','>',$fromDate." 00:00:00")->where('created_at','<=',$toDate." 23:59:59")->get();
         foreach($customers as $customer){
             $registeredDate = $customer->created_at->format('Y-m-d');
             $reports['registers'][$registeredDate] = $reports['registers'][$registeredDate] + 1;
@@ -95,6 +109,14 @@ class ReportController extends Controller
         $reports['complete'][] = round($completeCount/$i);
         return $reports;
     }
+    /**
+     * export customers.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function exportCustomers(Request $request){
         $from = $request->input("from");
         $to = $request->input("to");
@@ -171,6 +193,14 @@ class ReportController extends Controller
         ]);
         return Excel::download($export,'customers.xlsx');   
     }
+    /**
+     * export usage.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function exportUsage(Request $request){
         $fromDate = $request->input("from");
         $toDate = $request->input("to");
@@ -198,13 +228,162 @@ class ReportController extends Controller
         ]);
         return Excel::download($export,'usage.xlsx');   
     }
+    /**
+     * get customer workouts.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function customerWorkouts(Request $request){
-        $fromDate = $request->input("from");
-        $toDate = $request->input("to");
+        if($request->exists("from")){
+            $fromDate = $request->input("from");
+            $toDate = $request->input("to");
+            $change =  true;
+        }else{
+            $fromDate = date("Y-m")."-01";
+            $toDate = date("Y-m-d");
+            $change =  false;
+        }
         $number = $request->input("number");
+        if($request->exists('gender') && $request->input("gender") != 'all'){
+            $gender=$request->input("gender");
+        }
+        $month = $fromDate;
+        do {
+            $workoutPublishDates = [];
+            $workouts = ActivityWorkout::where('publish_date','>=',$fromDate)->where('publish_date','<=',$toDate)->whereType('complete')->get();
+            $records = Workout::where('publish_date','>=',$fromDate)->where('publish_date','<=',$toDate)->whereNotNull('comentario')->get();
+            foreach($records as $record){
+                if(in_array($record->publish_date,$workoutPublishDates)==false)$workoutPublishDates[] = $record->publish_date;
+            }
+            $customers = [];
+            foreach($workouts as $workout){
+                if(in_array($workout->publish_date,$workoutPublishDates)==false)$workoutPublishDates[] = $workout->publish_date;
+                if(isset($customers[$workout->customer_id])){
+                    $customers[$workout->customer_id]['workouts']++;
+                }else{
+                    $customers[$workout->customer_id] = ['id'=>$workout->customer_id,'workouts'=>1];
+                }
+            }
+            if($change){
+                break;
+            }else{
+                if($customers>0)$month = $fromDate;
+                $fromDate = date("Y-m", strtotime( date( "Y-m-d", strtotime( $fromDate ) ) . "-1 month" ) )."-01";
+                $toDate = date("Y-m-t", strtotime($fromDate));
+            }
+        } while(count($customers)==0);
+        $results = [];
+        if(count($workoutPublishDates)>0 && count($customers)>0){
+            uasort($customers, function ($a, $b) { 
+                if ( $a['workouts'] == $b['workouts']  ) return 0;
+                return ( $a['workouts'] > $b['workouts'] ? -1 : 1 ); 
+            });
+            $workoutCount = count($workoutPublishDates);
+            // $customers = array_slice(array_values($customers),0,$number);
+            $workoutComplete = 0;
+            $pos = 0;
+            $same = 0;
+            foreach($customers as $index=>$customer){
+                $item = Customer::find($customer['id']);
+                if(isset($gender)&&$gender!=$item->gender)continue;
+                $workouts = ActivityWorkout::whereCustomerId($customer['id'])->whereType('complete')->get();
+                if($workoutComplete == $customer['workouts']){
+                    $same++;
+                }else{
+                    $pos = $same + $pos + 1;
+                    $same = 0;
+                    $workoutComplete = $customer['workouts'];
+                }
+                if($item->user && $item->user->avatar){
+                    $data = pathinfo($item->user->avatar);
+                    $avatarFile = $data['dirname']."/avatar/".$data['filename'].".".$data['extension'];                                
+                    $avatarUrls = [
+                        'max'=>secure_url("storage/".$item->user->avatar),
+                        'large'=>secure_url("storage/".$item->user->avatar),
+                        'medium'=>secure_url("storage/".$item->user->avatar),
+                        'small'=>secure_url("storage/".$avatarFile),
+                    ];
+                }else{
+                    if($item->gender=="Male"){
+                        $avatarUrls = [
+                            'max'=>secure_url("storage/media/avatar/X-man-large.jpg"),
+                            'large'=>secure_url("storage/media/avatar/X-man-large.jpg"),
+                            'medium'=>secure_url("storage/media/avatar/X-man-medium.jpg"),
+                            'small'=>secure_url("storage/media/avatar/X-man-small.jpg"),
+                        ];
+                    }else{
+                        $avatarUrls = [
+                            'max'=>secure_url("storage/media/avatar/X-woman-large.jpg"),
+                            'large'=>secure_url("storage/media/avatar/X-woman-large.jpg"),
+                            'medium'=>secure_url("storage/media/avatar/X-woman-medium.jpg"),
+                            'small'=>secure_url("storage/media/avatar/X-woman-small.jpg"),
+                        ];
+                    }
+                }    
+                $workouts = Done::where('customer_id','=',$customer['id'])->get();
+                $results[] = [
+                    'id'=>$item->id,
+                    'pos'=>$pos,
+                    'avatar_url'=>$avatarUrls,
+                    'name'=>$item->first_name.' '.$item->last_name,
+                    'username'=>$item->username,
+                    'workout_completeness'=>round($customer['workouts']/$workoutCount*100),
+                    'workout_complete_count'=>$customer['workouts'].'/'.$workoutCount,
+                    'total'=>count($workouts)
+                ];
+                if(count($results)>=$number) break;
+            }
+        }
+        return response()->json(['data'=>$results,'month'=>$month]);
+    }
+    /**
+     * get customer workouts.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @queryParam range string required // all , current, last
+     * @queryParam gender string required // all , Male, Female, MaleMaster, FemaleMaster
+     * @response {
+     * }
+     */
+    public function customerWorkoutsRange(Request $request){
+        if(!$request->exists("range")){
+            $range = 'all';
+        }else{
+            $range = $request->input('range');
+        }
+        if(!$request->exists("gender")){
+            $gender = 'all';
+        }else{
+            $gender = $request->input('gender');
+        }
         $workoutPublishDates = [];
-        $workouts = ActivityWorkout::where('publish_date','>=',$fromDate)->where('publish_date','<=',$toDate)->whereType('complete')->get();
-        $records = Workout::where('publish_date','>=',$fromDate)->where('publish_date','<=',$toDate)->whereNotNull('comentario')->get();
+        if( $range == 'all' ){
+            $workouts = ActivityWorkout::whereType('complete')->get();
+            $records = Workout::whereNotNull('comentario')->get();
+        }else{
+            $user = $request->user();
+            if($user->customer){
+                $userTimezone = new \DateTimeZone($user->customer->timezone);
+                $objDateTime = new \DateTime('NOW');
+                $objDateTime->setTimezone($userTimezone);
+                $today = $objDateTime->format('Y-m-d');
+            }else{
+                $today = date("Y-m-d");
+            }
+            if($range == 'current'){
+                $fromDate = date("Y-m")."-01";
+                $toDate = $today;
+            }else{
+                $fromDate = date("Y-m", strtotime( date( "Y-m-d", strtotime( $today ) ) . "-1 month" ) )."-01";
+                $toDate = date("Y-m-t", strtotime($fromDate));
+            }
+            $workouts = ActivityWorkout::where('publish_date','>=',$fromDate)->where('publish_date','<=',$toDate)->whereType('complete')->get();
+            $records = Workout::where('publish_date','>=',$fromDate)->where('publish_date','<=',$toDate)->whereNotNull('comentario')->get();    
+        }
         foreach($records as $record){
             if(in_array($record->publish_date,$workoutPublishDates)==false)$workoutPublishDates[] = $record->publish_date;
         }
@@ -213,8 +392,9 @@ class ReportController extends Controller
             if(in_array($workout->publish_date,$workoutPublishDates)==false)$workoutPublishDates[] = $workout->publish_date;
             if(isset($customers[$workout->customer_id])){
                 $customers[$workout->customer_id]['workouts']++;
+                if($customers[$workout->customer_id]['done_date']<$workout->done_date)$customers[$workout->customer_id]['done_date'] = $workout->done_date;
             }else{
-                $customers[$workout->customer_id] = ['id'=>$workout->customer_id,'workouts'=>1];
+                $customers[$workout->customer_id] = ['id'=>$workout->customer_id,'workouts'=>1,'done_date'=>$workout->done_date];
             }
         }
         $results = [];
@@ -224,46 +404,82 @@ class ReportController extends Controller
                 return ( $a['workouts'] > $b['workouts'] ? -1 : 1 ); 
             });
             $workoutCount = count($workoutPublishDates);
-            $customers = array_slice(array_values($customers),0,$number);
+            // $customers = array_slice(array_values($customers),0,$number);
             $workoutComplete = 0;
+            $pos = 0;
+            $same = 0;
+            $now = Carbon::now();
             foreach($customers as $index=>$customer){
                 $item = Customer::find($customer['id']);
+                if(in_array($gender,['Male','Female'])){
+                    if($gender!=$item->gender)continue;
+                }else if(in_array($gender,['MaleMaster','FemaleMaster'])){
+                    $age = \DateTime::createFromFormat('Y-m-d', $item->birthday)->diff(new \DateTime('now'))->y;
+                    if($age<40)continue;
+                    if($gender == 'MaleMaster' && 'Male'!=$item->gender)continue;
+                    if($gender == 'FemaleMaster' && 'Female'!=$item->gender)continue;
+                }
                 $workouts = ActivityWorkout::whereCustomerId($customer['id'])->whereType('complete')->get();
                 if($workoutComplete == $customer['workouts']){
+                    $same++;
                 }else{
-                    $pos = $index + 1;
+                    $pos = $same + $pos + 1;
+                    $same = 0;
                     $workoutComplete = $customer['workouts'];
                 }
                 if($item->user && $item->user->avatar){
+                    $data = pathinfo($item->user->avatar);
+                    $avatarFile = $data['dirname']."/avatar/".$data['filename'].".".$data['extension'];                                
                     $avatarUrls = [
-                        'max'=>url("storage/".$item->user->avatar),
-                        'large'=>url("storage/".$item->user->avatar),
-                        'medium'=>url("storage/".$item->user->avatar),
-                        'small'=>url("storage/".$item->user->avatar),
+                        'max'=>secure_url("storage/".$item->user->avatar),
+                        'large'=>secure_url("storage/".$item->user->avatar),
+                        'medium'=>secure_url("storage/".$item->user->avatar),
+                        'small'=>secure_url("storage/".$avatarFile),
                     ];
                 }else{
                     if($item->gender=="Male"){
                         $avatarUrls = [
-                            'max'=>url("storage/media/avatar/X-man-large.jpg"),
-                            'large'=>url("storage/media/avatar/X-man-large.jpg"),
-                            'medium'=>url("storage/media/avatar/X-man-medium.jpg"),
-                            'small'=>url("storage/media/avatar/X-man-small.jpg"),
+                            'max'=>secure_url("storage/media/avatar/X-man-large.jpg"),
+                            'large'=>secure_url("storage/media/avatar/X-man-large.jpg"),
+                            'medium'=>secure_url("storage/media/avatar/X-man-medium.jpg"),
+                            'small'=>secure_url("storage/media/avatar/X-man-small.jpg"),
                         ];
                     }else{
                         $avatarUrls = [
-                            'max'=>url("storage/media/avatar/X-woman-large.jpg"),
-                            'large'=>url("storage/media/avatar/X-woman-large.jpg"),
-                            'medium'=>url("storage/media/avatar/X-woman-medium.jpg"),
-                            'small'=>url("storage/media/avatar/X-woman-small.jpg"),
+                            'max'=>secure_url("storage/media/avatar/X-woman-large.jpg"),
+                            'large'=>secure_url("storage/media/avatar/X-woman-large.jpg"),
+                            'medium'=>secure_url("storage/media/avatar/X-woman-medium.jpg"),
+                            'small'=>secure_url("storage/media/avatar/X-woman-small.jpg"),
                         ];
                     }
                 }    
-                $workouts = Done::where('customer_id','=',$customer['id'])->get();
-                $results[] = ['id'=>$item->id,'pos'=>$pos,'avatar_url'=>$avatarUrls,'name'=>$item->first_name.' '.$item->last_name,'workout_completeness'=>round($customer['workouts']/$workoutCount*100),'workout_complete_count'=>$customer['workouts'].'/'.$workoutCount,'total'=>count($workouts)];
+                $doneWorkout = Done::where('customer_id','=',$customer['id'])->where('done_date',$customer['done_date'])->orderByDesc('created_at')->first();
+                if($doneWorkout)$diffHours = $now->diffInHours($doneWorkout->created_at);
+                else $diffHours=1000;
+                $results[] = [
+                    'id'=>$item->id,
+                    'pos'=>$pos,
+                    'avatar_url'=>$avatarUrls,
+                    'name'=>$item->first_name.' '.$item->last_name,
+                    'username'=>$item->username,
+                    'workout_completeness'=>round($customer['workouts']/$workoutCount*100),
+                    'workout_complete_count'=>$customer['workouts'],
+                    'workout_done_date'=>$customer['done_date'],
+                    'recent_workout' => $diffHours
+                ];
+                // if(count($results)>=$number) break;
             }
         }
-        return response()->json($results);
+        return response()->json(['data'=>$results]);
     }
+    /**
+     * export subscriptions.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function exportSubscriptions(Request $request){
         $fromDate = $request->input("from");
         $toDate = $request->input("to");

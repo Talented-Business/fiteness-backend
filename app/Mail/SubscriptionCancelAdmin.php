@@ -42,7 +42,7 @@ class SubscriptionCancelAdmin extends Mailable
      */
     public function build()
     {
-        $subject = $this->customer->first_name."cancelled plan Fitness ".$this->frequency." on ".$this->cancelDate;
+        $subject = $this->customer->first_name." cancelled plan Fitness ".$this->frequency." on ".$this->cancelDate;
         return $this->subject($subject)->view('emails.subscriptions.cancel_admin');
     }
 }

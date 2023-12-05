@@ -5,6 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Validator;
+/**
+ * @group Role   
+ *
+ * APIs for managing  role
+ */
 
 class RoleController extends Controller
 {
@@ -12,6 +17,14 @@ class RoleController extends Controller
     {
         $this->middleware(['permission:settings']);
     }
+    /**
+     * create a role.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), array('name'=>['required','max:255','unique:roles']));
@@ -24,6 +37,14 @@ class RoleController extends Controller
         $role->save();
         return response()->json(array('status'=>'ok','role'=>$role));
     }
+    /**
+     * update a role.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $validator = Validator::make($request->all(), array('name'=>['required','max:255','unique:roles,name,'.$id]));
@@ -35,6 +56,14 @@ class RoleController extends Controller
         $role->save();
         return response()->json(array('status'=>'ok','role'=>$role));
     }
+    /**
+     * delete a role.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id){
         $role = Role::find($id);
         if($role){
@@ -53,6 +82,14 @@ class RoleController extends Controller
         ];
         return response()->json($data,403);
     }
+    /**
+     * get all roles.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(){
         $roles = Role::all();
         return response()->json($roles);

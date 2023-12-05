@@ -7,9 +7,22 @@ use App\Survey;
 use App\SurveyItem;
 use App\SurveySelect;
 use Illuminate\Support\Facades\Validator;
+/**
+ * @group Survey Item   
+ *
+ * APIs for managing survey item
+ */
 
 class SurveyItemController extends Controller
 {
+    /**
+     * create a survey item.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request){
         $validator = Validator::make($request->all(), SurveyItem::validateRules());
         if ($validator->fails()) {
@@ -20,6 +33,14 @@ class SurveyItemController extends Controller
         $surveyitem->save();
         return response()->json(array('status'=>'ok','surveyitem'=>$surveyitem));
     }
+    /**
+     * update a survey item.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request){
         $requestData=$request->input();
         if($requestData['question']==null){
@@ -42,6 +63,14 @@ class SurveyItemController extends Controller
         }
         return response()->json(array('status'=>'ok'));
     }
+    /**
+     * search survey items.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $item = new SurveyItem;
         $surveySelect = new SurveySelect;
@@ -49,10 +78,26 @@ class SurveyItemController extends Controller
         $item->assignSearch($request);
         return response()->json(array('status'=>'ok','fetchData'=>$item->searchAll(),'options'=>$options)); 
     }
+    /**
+     * show a survey item.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $item = SurveyItem::find($id);
         return response()->json(['item'=>$item,'status'=>"ok"]);
     }
+    /**
+     * delete a survey item.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id){
         $deleteItem = SurveyItem::find($id);
         if($deleteItem){
@@ -71,12 +116,28 @@ class SurveyItemController extends Controller
         }        
         return response()->json($data);
     }
+    /**
+     * create a survey item as selected question.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function selectQuestionSave(Request $request){
         $selectQuestion = new SurveyItem;
         $selectQuestion->fill($request->input());
         $selectQuestion->save();
         return response()->json(array('status'=>'ok','selectQeustion'=>$selectQuestion));
     }
+    /**
+     * create a survey select option.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function selectOptionSave($id,Request $request){
         $surveySelect = new SurveySelect;
         $surveyItem = new SurveyItem;
@@ -89,6 +150,14 @@ class SurveyItemController extends Controller
         }
         return response()->json(array('status'=>'ok'));
     }
+    /**
+     * create a survey select option.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function selectOptionDelete($id){
         $deleteItem = SurveySelect::find($id);
         if($deleteItem){
@@ -97,6 +166,14 @@ class SurveyItemController extends Controller
         $options = SurveySelect::all();
         return response()->json(array('status'=>'ok','selectOption'=>$options));
     }
+    /**
+     * create a survey item options.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function saveOptionItems($id,Request $request){
         $surveySelect = new SurveySelect;
         $optionData = $request->input();
@@ -105,6 +182,14 @@ class SurveyItemController extends Controller
         $optionData = SurveySelect::where('survey_item_id',$id)->get();
         return response()->json(array('status'=>'ok','selectOption'=>$options,'selectOptionData'=>$optionData)); 
     }
+    /**
+     * update a survey item options.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function selectOptionEdit($id,Request $request){
        $surveySelect = new SurveySelect;
        $requestData = $request->input();

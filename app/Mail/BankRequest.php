@@ -27,7 +27,7 @@ class BankRequest extends Mailable
         $this->duration = $duration;
         $this->amount = $amount;
         $this->bankFee = $bankFee;
-        $this->url = env("APP_URL");
+        $this->url = config('app.url');
     }
 
     /**

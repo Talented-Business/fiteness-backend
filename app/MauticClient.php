@@ -11,15 +11,15 @@ class MauticClient
     public function authenticate()
     {
         $settings = array(
-            'baseUrl' => env('MAUTIC_API_URL'),
-            'userName' => env('MAUTIC_API_USERNAME'),
-            'password' => env('MAUTIC_API_PASSWORD'),
+            'baseUrl' => config('app.mautic_api_url'),
+            'userName' => config('app.mautic_api_username'),
+            'password' => config('app.mautic_api_password'),
         );
 
         // Initiate the auth object
         $initAuth = new ApiAuth();
         $this->auth = $initAuth->newAuth($settings, 'BasicAuth');
-        $this->apiUrl = env('MAUTIC_API_URL') . '/api';
+        $this->apiUrl = config('app.mautic_api_url') . '/api';
     }
     private function getFields()
     {

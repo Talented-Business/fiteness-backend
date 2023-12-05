@@ -5,9 +5,22 @@ use App\Benchmark;
 use App\BenchmarkResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+/**
+ * @group Benchmark result
+ *
+ * APIs for managing  benchmark results
+ */
 
 class BenchmarkResultController extends Controller
 {
+    /**
+     * create a benchmark result.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), BenchmarkResult::validateRules());
@@ -23,6 +36,14 @@ class BenchmarkResultController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->returnBechmarks($user->customer->id, $benchmarkResult->benchmark_id);
     }
+    /**
+     * update a benchmark result.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id, Request $request)
     {
         $validator = Validator::make($request->all(), BenchmarkResult::validateRules());
@@ -38,6 +59,14 @@ class BenchmarkResultController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->returnBechmarks($user->customer->id, $benchmarkResult->benchmark_id);
     }
+    /**
+     * delete a benchmark result.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id, Request $request)
     {
         $benchmarkResult = BenchmarkResult::find($id);
@@ -61,15 +90,27 @@ class BenchmarkResultController extends Controller
         }
         return response()->json($data);
     }
+    /**
+     * show a benchmark result.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id)
     {
         $benchmarkResult = BenchmarkResult::find($id);
         return response()->json($benchmarkResult);
     }
-    public function category()
-    {
-        return Category::all();
-    }
+    /**
+     * search a benchmark result.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request)
     {
         $benchmarkResult = new BenchmarkResult;
@@ -84,6 +125,14 @@ class BenchmarkResultController extends Controller
         }
         return response()->json(['published' => $result]);
     }
+    /**
+     * get a benchmark.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function benchmark($id, Request $request)
     {
         $user = $request->user('api');
@@ -106,13 +155,14 @@ class BenchmarkResultController extends Controller
         }
         return $interval;
     }
-    private function dateDiff($from, $to)
-    {
-        $ts1 = strtotime($from);
-        $ts2 = strtotime($to);
-        $seconds_diff = $ts2 - $ts1;
-        return floor($seconds_diff / 3600 / 24);
-    }
+    /**
+     * get a benchmark result histories.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function history(Request $request)
     {
         $user = $request->user('api');

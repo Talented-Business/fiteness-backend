@@ -13,9 +13,22 @@ use Illuminate\Support\Facades\DB;
 use Mail;
 use App\Mail\CouponInvitationEmail;
 
+/**
+ * @group Coupon
+ *
+ * APIs for managing  coupon
+ */
 
 class CouponController extends Controller
 {
+    /**
+     * create a coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $user = $request->user('api');
@@ -45,6 +58,14 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * update a coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $user = $request->user('api');
@@ -62,6 +83,14 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * show a coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id,Request $request){
         $user = $request->user('api');
         if($user->can('coupons')){
@@ -77,6 +106,14 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * delete a coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id,Request $request){
         $user = $request->user('api');
         if($user->can('coupons')){
@@ -100,6 +137,14 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * search coupons.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $user = $request->user('api');
         if($user->can('coupons')){
@@ -110,6 +155,14 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * disable a coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function disable($id,Request $request){
         $user = $request->user('api');
         if($user->can('coupons')){
@@ -122,6 +175,14 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * active a coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function active($id,Request $request){
         $user = $request->user('api');
         if($user->can('coupons')){
@@ -134,6 +195,14 @@ class CouponController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * check the validation of a coupon on renewal.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function check(Request $request){
         $inputs = $request->input('voucher');
         $code = $inputs['token'];
@@ -155,6 +224,14 @@ class CouponController extends Controller
             return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
         }
     }
+    /**
+     * generate first pay on a coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function generateFirstPay(Request $request){
         $user = $request->user('api');
         $coupon = Coupon::createFirstPay($user);
@@ -166,6 +243,14 @@ class CouponController extends Controller
             return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
         }
     }
+    /**
+     * show  a private coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function private(Request $request){
         $inputs = $request->input('voucher');
         $code = $inputs['code'];
@@ -179,6 +264,14 @@ class CouponController extends Controller
             return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
         }
     }
+    /**
+     * show a public coupon including invitation code coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function public(Request $request){
         $inputs = $request->input('voucher');
         $code = $inputs['code'];
@@ -199,6 +292,14 @@ class CouponController extends Controller
         }
         return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
     }
+    /**
+     * show a email coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function email(Request $request){
         $id = $request->input('id');
         $couponEmail = CouponEmail::find($id);
@@ -210,6 +311,14 @@ class CouponController extends Controller
         }
         return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
     }
+    /**
+     * show a public coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function publicWithUser(Request $request){
         $inputs = $request->input('voucher');
         $couponId = $inputs['id'];
@@ -222,6 +331,14 @@ class CouponController extends Controller
             return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
         }
     }
+    /**
+     * find a coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function referral(Request $request){
         $inputs = $request->input('voucher');
         $code = $inputs['code'];
@@ -243,6 +360,14 @@ class CouponController extends Controller
             return response()->json(['errors' => ['token'=>[['error'=>'invalid']]]],422);
         }
     }
+    /**
+     * create a renewal coupon for autenticated customer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function createRenewal(Request $request){
         $user = $request->user('api');
         $coupon = Coupon::createRenewal($user);

@@ -34,9 +34,10 @@ class Config extends Model
         }        
     }
     public function updateConfig($name, $value){
-        DB::table($this->table)->where('name', '=', $name)->delete();
-        DB::table($this->table)->insert(
-            ['name' => $name,'value' => $value]
+        DB::table($this->table)
+            ->updateOrInsert(
+            ['name' => $name],
+            ['value' => $value]
         );
     }
     public function findByName($name){

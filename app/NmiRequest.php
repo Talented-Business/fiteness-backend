@@ -24,10 +24,10 @@ class NmiRequest {
 		if( $url ) {
 			$this->url = $url;
 		}
-        $this->_username = env('NMI_USERNAME');
-        $this->_password = env('NMI_PASSWORD');
-		$this->_logging = $logging;
-        //$this->_sandbox = env('PAYMENT_TEST_MODE');
+        $this->_username = config('app.nmi_username');
+        $this->_password = config('app.nmi_password');
+	$this->_logging = true;
+        $this->_sandbox = config('app.payment_test_mode');
         $this->_log_file = false;        
 	}
 
@@ -61,7 +61,7 @@ class NmiRequest {
 	 * Transaction to put on-hold
 	 */
 	public function auth() {
-        $this->type = "auth";
+        $this->_post_fields['type'] = "auth";
 		return $this->_sendRequest();
     }
 
@@ -70,6 +70,7 @@ class NmiRequest {
 	 */
 	public function validate() {
         $this->type = "validate";
+        $this->_post_fields['type'] = "validate";        
         return $this->_sendRequest();
     }
 
@@ -86,6 +87,7 @@ class NmiRequest {
 	 */
 	public function cancel() {
         $this->type = "void";
+        $this->_post_fields['type'] = "void";
 		return $this->_sendRequest();
     }
 
@@ -211,6 +213,8 @@ class NmiRequest {
      * @return NMI_Response The response.
      */
     protected function _sendRequest() {
+        $this->_setPostString();
+        $post_url = $this->_getPostUrl();
         if($this->_sandbox){
             // if($this->type=='sale') $response = "response=1&responsetext=Approved&authcode=00".rand(1000,9999)."&transactionid=".time().rand(10,99)."&avsresponse=&cvvresponse=&orderid=".$this->_post_fields['orderid']."&type=sale&response_code=100&customer_vault_id=".$this->_post_fields['customer_vault_id'];
             // else  $response = "response=1&responsetext=Approved&authcode=00".rand(1000,9999)."&transactionid=".time().rand(10,99)."&avsresponse=&cvvresponse=M&orderid=&type=validate&response_code=100&customer_vault_id=".time();
@@ -218,8 +222,6 @@ class NmiRequest {
             else  $response = "response=1&responsetext=Approved&authcode=00".rand(1000,9999)."&transactionid=".time().rand(10,99)."&avsresponse=&cvvresponse=M&orderid=&type=validate&response_code=100&customer_vault_id=".time();
             return $this->_handleResponse( $response );
         }
-        $this->_setPostString();
-        $post_url = $this->_getPostUrl();
 
         $curl_request = curl_init( $post_url );
 

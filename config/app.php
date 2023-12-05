@@ -179,6 +179,7 @@ return [
         Maatwebsite\Excel\ExcelServiceProvider::class,
         Fahim\PaypalIPN\PaypalIPNServiceProvider::class,
         Spatie\Permission\PermissionServiceProvider::class,
+        \SocialiteProviders\Manager\ServiceProvider::class,
     ],
 
     /*
@@ -233,5 +234,14 @@ return [
         'Image' => Intervention\Image\Facades\Image::class,
         'PDF' => Barryvdh\DomPDF\Facade::class,
     ],
-
+    'interval_unit'=>env('INTERVAL_UNIT'),
+    'session_timeout'=>env('SESSION_TIMEOUT'),
+    'mautic_api_url'=>env('MAUTIC_API_URL'),
+    'mautic_api_username'=>env('MAUTIC_API_USERNAME'),
+    'mautic_api_password'=>env('MAUTIC_API_PASSWORD'),
+    'nmi_username'=>env('NMI_USERNAME'),
+    'nmi_password'=>env('NMI_PASSWORD'),
+    'nmi_security_key'=>env('NMI_SECURITY_KEY'),
+    'payment_test_mode'=>env('PAYMENT_TEST_MODE'),
+    'fcm_key'=>env('FCM_KEY'),
 ];

@@ -17,7 +17,7 @@ class CreateCommentsTable extends Migration
             $table->bigIncrements('id');
             $table->text('content');
             $table->unsignedBigInteger('post_id');
-            $table->unsignedBigInteger('activity_id');//social activity
+            $table->unsignedBigInteger('activity_id')->unique();//social activity
             $table->unsignedBigInteger('customer_id');
             $table->unsignedBigInteger('parent_activity_id');
             $table->integer('level0');

@@ -79,9 +79,6 @@
   #superheading {
     width: 560px !important; }
 
-  #logo {
-    display: none !important; }
-
   #logo img {
     padding-bottom: 20px; }
 
@@ -119,7 +116,7 @@
   margin: 0;
   padding: 0; }
 
-#logo {   text-align: center;  width: 450px; }
+#logo {   text-align: center;  width: 250px; }
 
 .mobile_only {
   display: none;
@@ -358,7 +355,7 @@ strong {
 
 #header {background-color: #ffffff; padding:0 25px}
   #header #logo img {
-    margin-left: 0;
+    margin-left: auto;
     margin-right: auto; }
 
 .article-content {
@@ -434,19 +431,6 @@ strong {
 					<tr class="mobile_only">
 						<td class="w640" height="10" width="640"></td>
 					</tr>
-          <tr class="mobile_only">
-              <td class="w640" align="center" width="640">
-                  <table class="w640" border="0" cellpadding="0" cellspacing="0" width="640">
-                      <tr class="mobile_only">
-                        <td class="w560" width="560" valign="top" align="center">
-                              <img class="mobile_only mobile-logo" border="0" src="{{asset('media/logos/Fitmose-logo.png')}}" alt="Fitemos" width="150" height="" />
-                          </td>
-                          <td class="w40" width="40"></td>
-                          <td class="w40" width="40"></td>
-                      </tr>
-                  </table>
-              </td>
-          </tr>
 					<tr class="large_only">
 						<td class="w640"  height="20" width="640"></td>
 					</tr>
@@ -454,14 +438,14 @@ strong {
 						<td class="w640" width="640" colspan="3" height="20"></td>
 					</tr>
 					<tr>
-						<td id="header" class="w640" align="left" width="640">
+						<td id="header" class="w640" align="center" width="640">
 							<table class="w640" border="0" cellpadding="0" cellspacing="0" width="640">
 								<tr>
-                  <td id="logo" width="580" valign="top" align="left">
+                  <td class="w30" width="195"></td>
+                  <td id="logo" width="250" valign="top" align="center">
 										<img border="0" src="{{url('media/logos/Fitmose-logo.png')}}" alt="Fitemos" width="250" height="" />
 									</td>
-									<td class="w30" width="30"></td>
-									<td class="w30" width="100"></td>
+									<td class="w30" width="195"></td>
 								</tr>
               </table>
               <hr style="border-color: #e4e4e4">

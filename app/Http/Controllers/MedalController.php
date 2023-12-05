@@ -6,6 +6,11 @@ use Illuminate\Http\Request;
 use App\Medal;
 use Illuminate\Support\Facades\Validator;
 use App\MagicImage;
+/**
+ * @group Medal   
+ *
+ * APIs for managing  medal
+ */
 
 class MedalController extends Controller
 {
@@ -14,6 +19,14 @@ class MedalController extends Controller
     {
         $this->middleware(['permission:medals']);
     }
+    /**
+     * create a medal.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), Medal::validateRules());
@@ -35,6 +48,14 @@ class MedalController extends Controller
         $medal->save();
         return response()->json(array('status'=>'ok','medal'=>$medal));
     }
+    /**
+     * update a medal.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $validator = Validator::make($request->all(), Medal::validateRules($id));
@@ -56,11 +77,27 @@ class MedalController extends Controller
         $medal->save();
         return response()->json(array('status'=>'ok','medal'=>$medal));
     }
+    /**
+     * show a medal.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $medal = Medal::find($id);
-        $medal->image = url('storage/'.$medal->image);      
+        $medal->image = secure_url('storage/'.$medal->image);      
         return response()->json($medal);
     }
+    /**
+     * delete a medal.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id){
         $medal = Medal::find($id);
         if($medal){
@@ -79,13 +116,21 @@ class MedalController extends Controller
         }        
         return response()->json($data);
     }
+    /**
+     * get all medals.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $medals = Medal::orderBy('count')->get();
         $total =0;
         if($medals){
             $total = count($medals);
             foreach ($medals as $key => $medal) {
-                $medal->image = url('storage/'.$medal->image);            
+                $medal->image = secure_url('storage/'.$medal->image);            
             }
         }
         return response()->json(['data'=>$medals,'total'=>$total]);

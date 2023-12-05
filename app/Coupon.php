@@ -139,7 +139,7 @@ class Coupon extends Model
         $this->type = "Private";
         $this->discount = 30;
         $this->save();
-        $url = env('APP_URL').self::COUPON_URL.$this->code;
+        $url = config('app.url').self::COUPON_URL.$this->code;
         Mail::to($subscription->customer->email)->send(new CouponTrialBefore($subscription->customer->first_name,$url));
     }
     public function generatePrivateTrialAfter($subscription){
@@ -150,7 +150,7 @@ class Coupon extends Model
         $this->type = "Private";
         $this->discount = 30;
         $this->save();
-        $url = env('APP_URL').self::COUPON_URL.$this->code;
+        $url = config('app.url').self::COUPON_URL.$this->code;
         Mail::to($subscription->customer->email)->send(new CouponTrialAfter($subscription->customer->first_name,$url));
     }
     public static function scrape(){
@@ -182,7 +182,8 @@ class Coupon extends Model
             $coupon = Coupon::find($id);
             if($coupon && $coupon->status == "Active"){
                 if($coupon->type == "Referral"){
-                    if($coupon->customer->hasActiveSubscription())return $coupon;
+                    $customer = Customer::find($coupon->customer_id);
+                    if($customer && $customer->hasActiveSubscription())return $coupon;
                 }else {
                     return $coupon;
                 }

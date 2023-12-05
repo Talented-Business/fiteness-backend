@@ -11,14 +11,15 @@ class CustomerExport extends Mailable
 {
     use Queueable, SerializesModels;
 
+    public $files;
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct()
+    public function __construct($files)
     {
-        //
+        $this->files = $files;
     }
 
     /**
@@ -29,10 +30,13 @@ class CustomerExport extends Mailable
     public function build()
     {
         $subject = date("Y-m-d").' Customers Export';
-        $file = \Storage::disk('local')->path('customers.xlsx');
-        return $this->subject($subject)->view('emails.customers.export')->attach($file, [
-            'as' => 'customers.xlsx',
-            'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ]);
+        $email =  $this->subject($subject)->view('emails.customers.export');
+        foreach($this->files as $index=>$attachment){
+            $email->attach($attachment, [
+                'as' => "customers$index.xlsx",
+                'mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
+        }
+        return $email;
     }
 }

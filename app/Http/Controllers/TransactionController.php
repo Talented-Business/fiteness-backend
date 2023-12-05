@@ -6,6 +6,11 @@ use Illuminate\Http\Request;
 use App\Transaction;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\TransactionsExport;
+/**
+ * @group Transaction   
+ *
+ * APIs for managing transactions
+ */
 
 class TransactionController extends Controller
 {
@@ -13,6 +18,14 @@ class TransactionController extends Controller
     {
         $this->middleware(['permission:transactions']);
     }
+    /**
+     * create a transaction.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $transaction = new Transaction;
@@ -20,15 +33,39 @@ class TransactionController extends Controller
         $transaction->save();
         return response()->json(array('status'=>'ok','transaction'=>$transaction));
     }
+    /**
+     * show a transaction.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $transaction = Transaction::find($id);
         return response()->json($transaction);
     }
+    /**
+     * search transactions.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $transaction = new Transaction;
         $transaction->assignSearch($request);
         return response()->json($transaction->search());
     }
+    /**
+     * export transactions as excel file.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function export(Request $request)
     {
         $transaction = new Transaction;
@@ -51,6 +88,14 @@ class TransactionController extends Controller
         ]);
         return Excel::download($export,'transactions.xlsx');   
     }
+    /**
+     * show transaction log.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function log($id){
         $transaction = Transaction::find($id);
         $doneDate = date("Y-m-d",strtotime($transaction->done_date));

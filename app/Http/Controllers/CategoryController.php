@@ -3,17 +3,33 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Category;
+/**
+ * @group Category
+ *
+ * APIs for managing  category
+ */
 
 class CategoryController extends Controller
 {
+    /**
+     * get all categories.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function all(){
         $categories = Category::all();
         return response()->json($categories);
     }
     /**
-     * Get the authenticated User
-     *
-     * @return [json] user object
+     * search categories.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
      */
     public function index(Request $request)
     {
@@ -21,6 +37,14 @@ class CategoryController extends Controller
         $category->assignSearch($request);
         return response()->json($category->search());
     }
+    /**
+     * create a category.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), Category::validateRules());
@@ -32,6 +56,14 @@ class CategoryController extends Controller
         $category->save();
         return response()->json(array('status'=>'ok','category'=>$category));
     }
+    /**
+     * update a category.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $validator = Validator::make($request->all(), Category::validateRules());
@@ -43,11 +75,14 @@ class CategoryController extends Controller
         $category->save();
         return response()->json(array('status'=>'ok','category'=>$category));
     }
-    public function updateStatus($id){
-        $category = Category::find($id);
-        $category->save();
-        return response()->json($category);
-    }
+    /**
+     * delete a category.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id){
       $asset = Category::find($id);
       if($asset){
@@ -66,6 +101,14 @@ class CategoryController extends Controller
       }        
       return response()->json($data);
     }
+    /**
+     * show a category.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $category = Category::find($id);
         return response()->json($category);

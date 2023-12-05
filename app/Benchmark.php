@@ -33,7 +33,7 @@ class Benchmark extends Model
         $response = $where->orderBy('created_at', 'DESC')->paginate($this->pageSize);
         $items = $response->items();
         foreach($items as $index=>$item){
-            if($item->image)  $item->image = url('storage/'.$item->image);      
+            if($item->image)  $item->image = secure_url('storage/'.$item->image);      
             if($item->post_date){
                 $dates = explode(' ',$item->post_date);
                 $items[$index]['date'] = $dates[0];

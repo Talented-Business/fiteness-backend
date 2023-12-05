@@ -40,12 +40,12 @@ class Kernel extends ConsoleKernel
             ->everyTenMinutes()
             ->evenInMaintenanceMode()
             ->timezone('America/Panama');
-        if(!$this->isRunQueue()){
+/*        if(!$this->isRunQueue()){
             $schedule->command('queue:work --tries=3')
             ->everyTenMinutes()
             ->evenInMaintenanceMode()
             ->timezone('America/Panama');
-        }    
+        }    */
         $schedule->command('mautic:scrape')
             ->hourly()
             ->evenInMaintenanceMode()
@@ -67,13 +67,21 @@ class Kernel extends ConsoleKernel
             ->dailyAt('23:59')
             ->evenInMaintenanceMode()
             ->timezone('America/Panama');
+        $schedule->command('posts:read')
+            ->everyTenMinutes()
+            ->evenInMaintenanceMode()
+            ->timezone('America/Panama');
+        $schedule->command('customer:updateDisplayOrder')
+            ->everyThirtyMinutes()
+            ->evenInMaintenanceMode()
+            ->timezone('America/Panama');
     }
     private function isRunQueue(){
         exec("ps -eo cmd", $output, $return);
         $queue = 0;
         if(is_array($output)){
             foreach($output as $value){
-                if(strpos($value,'php artisan queue:work --tries=3')){
+                if(strpos($value,'php artisan queue:work --tries=3 --timeout=500')){
                     //$config->updateConfig('subscription_queue'.$queue, $value);
                     $queue++;
                 }

@@ -4,9 +4,22 @@ namespace App\Http\Controllers;
 use App\LevelTest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+/**
+ * @group Level Test   
+ *
+ * APIs for managing level test
+ */
 
 class LevelTestController extends Controller
 {
+    /**
+     * create a level test.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), LevelTest::validateRules());
@@ -27,6 +40,14 @@ class LevelTestController extends Controller
             return response()->json(['status'=>'failed'],422);                
         }
     }
+    /**
+     * update a level test.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id, Request $request)
     {
         $validator = Validator::make($request->all(), LevelTest::validateRules());
@@ -41,6 +62,14 @@ class LevelTestController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['status'=>$levelTest]);
     }
+    /**
+     * delete a level test.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id, Request $request)
     {
         $levelTest = LevelTest::find($id);
@@ -63,6 +92,14 @@ class LevelTestController extends Controller
         }
         return response()->json($data);
     }
+    /**
+     * search level tests.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request)
     {
         $levelTest = new LevelTest;

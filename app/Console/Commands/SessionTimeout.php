@@ -42,7 +42,7 @@ class SessionTimeout extends Command
         foreach($sessions as $session){
             if($session->inside == 'yes'){
                 $diff = time() - strtotime($session->updated_at->toString());
-                if($diff>env('SESSION_TIMEOUT')*60){
+                if($diff>config('app.session_timeout')*60){
                     $session->inside = 'no';
                     $session->save();
                 }

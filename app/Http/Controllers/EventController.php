@@ -7,12 +7,25 @@ use App\Category;
 use App\MauticClient;
 use Google_Client;
 use Vinkla\Facebook\Facades\Facebook;
+/**
+ * @group News
+ *
+ * APIs for managing  news
+ */
 
 class EventController extends Controller
 {
     public function __construct(){
         $this->middleware('EventChangeData');
     }
+    /**
+     * create a blog.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $user = $request->user('api');
@@ -35,6 +48,14 @@ class EventController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * update a blog.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $user = $request->user('api');
@@ -57,6 +78,14 @@ class EventController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * delete a blog.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id,Request $request){
         $user = $request->user('api');
         if($user->can('events')){
@@ -80,9 +109,17 @@ class EventController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * show a blog.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $event = Event::find($id);
-        if($event->image)  $event->image = url('storage/'.$event->image);
+        if($event->image)  $event->image = secure_url('storage/'.$event->image);
         $event->category;
         $event['created_date'] = date('M d, Y',strtotime($event->post_date));
         if($event->post_date){
@@ -93,6 +130,14 @@ class EventController extends Controller
         }
         return response()->json($event);
     }
+    /**
+     * search blogs.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $files = \Storage::disk('public')->files('photos');
         $convertFiles = [];
@@ -123,6 +168,14 @@ class EventController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * search blogs on front.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function home(Request $request){
         $event = new Event;
         $event->assignFrontSearch($request);
@@ -130,6 +183,14 @@ class EventController extends Controller
         if($user&&$user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json($event->search());
     }
+    /**
+     * disable a blog.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function disable($id,Request $request)
     {
         $user = $request->user('api');
@@ -145,6 +206,14 @@ class EventController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * restore a blog.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function restore($id,Request $request)
     {
         $user = $request->user('api');
@@ -160,22 +229,46 @@ class EventController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * recent 3 blogs.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function recent(){
         $items = Event::whereStatus('Publish')->where('post_date','<',date("Y-m-d H:i:s"))->take(3)->orderBy('created_at','desc')->get();
         foreach($items as $index=> $event){
             $items[$index]['created_date'] = date('M d, Y',strtotime($event->created_at));
             $event->category;
             $items[$index]['excerpt'] = $event->extractExcerpt($event->description);
-            if($event->image)  $event->image = url('storage/'.$event->image);            
+            if($event->image)  $event->image = secure_url('storage/'.$event->image);            
         }
         return response()->json($items);
     }
+    /**
+     * subscribe on blog.
+     * 
+     * This endpoint.
+     * @nonauthenticated
+     * @response {
+     * }
+     */
     public function subscribe(Request $request){
         $email = $request->input('email');
         $name = $request->input('name');
         MauticClient::subscribe($name,$email);
         return response()->json(['success' => 'success']);
     }
+    /**
+     * subscribe on blog with facebook.
+     * 
+     * This endpoint.
+     * @nonauthenticated
+     * @response {
+     * }
+     */
     public function subscribeWithFacebook(Request $request){
         $response = Facebook::get('/me?&fields=first_name,last_name,email', $request->input('access_token'));
         $provider = 'facebook';
@@ -191,9 +284,17 @@ class EventController extends Controller
             'errors' => [['error'=>'api']]
         ], 423);
     }
+    /**
+     * subscribe on blog with googl.
+     * 
+     * This endpoint.
+     * @nonauthenticated
+     * @response {
+     * }
+     */
     public function subscribeWithGoogle(Request $request){
         $provider = 'google';
-        $client = new Google_Client(['client_id' => env('GOOGLE_CLIENT_ID')]);  // Specify the CLIENT_ID of the app that accesses the backend
+        $client = new Google_Client(['client_id' => config('services.google.client_id')]);  // Specify the CLIENT_ID of the app that accesses the backend
         $payload = $client->verifyIdToken($request->input('access_token'));
         if ($payload) {
             $firstName = $payload['given_name'];

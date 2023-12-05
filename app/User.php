@@ -85,7 +85,14 @@ class User extends Authenticatable
 
         return $ip;
     }
-
+    public static function getCountryFromIp(){
+        $ip = self::getUserIP();
+        if($ip=='127.0.0.1'){
+            $ipInfo = file_get_contents("http://ip-api.com/json/132.45.23.234");
+        }else $ipInfo = file_get_contents("http://ip-api.com/json/".$ip);
+        $ipInfo = json_decode($ipInfo);
+        return $ipInfo;
+    }
     public static function createCustomer($record,$provider='email',$providerId=null){
         $serviceId = 1;
         switch($record['application_source']){
@@ -161,6 +168,7 @@ class User extends Authenticatable
             if(($imc<18.5 && $record['goal']!="strong") || 
                 ($imc>=18.5 && $imc<25 && $record['goal']!="fit") || 
                 ($imc>=25 && $record['goal']!="cardio")) $customer->objective = $record['goal'];
+            $customer->generateUsername();    
             $customer->save();
             if($customer->coupon_id){
                 if(isset($couponEmail)){
@@ -211,7 +219,7 @@ class User extends Authenticatable
     public static function findDetails($user){
         $hasWorkoutSubscription = false;
         $hasActiveWorkoutSubscription = false;
-        if($user->customer){
+        if($user->customer){// related with workout subscription
             $hasWorkoutSubscription = $user->customer->hasSubscription();
             $subscription = $user->customer->getActiveWorkoutSubscription(); 
             if($subscription){
@@ -239,6 +247,8 @@ class User extends Authenticatable
                 $user->customer['renewalOptions'] = $subscription->renewalOptions();
                 $user->customer['currentWorkoutMonths'] = $subscription->convertMonths();
                 $user->customer['currentWorkoutPaymentType'] = $subscription->gateway;
+                $user->customer['medals'] = $user->customer->findMedal();
+                $user->customer['muteStatus'] = $user->customer->muteStatus;
             }else{
                 $service =Service::find(1);
                 $s = ['serviceName'=>$service->title];
@@ -282,32 +292,59 @@ class User extends Authenticatable
         }
         $defaultCoupon = Coupon::whereCode(Coupon::DEFAULT)->first();
         if($defaultCoupon)$user['defaultCouponId'] = $defaultCoupon->id;
-        if($user->customer){
+        if($user->customer){// related with social and other
+            $user->customer->getSocialDetails();
             $heightValue = Height::convert($user->customer->current_height,$user->customer->current_height_unit)/100;
             if($heightValue==0)$heightValue = Height::convert($user->customer->initial_height,$user->customer->initial_height_unit)/100;
             $user->customer['imc'] = round(Weight::convert($user->customer->current_weight,$user->customer->current_weight_unit)/$heightValue/$heightValue);
             if($user->avatar){
+                $data = pathinfo($user->avatar);
+                $avatarFile = $data['dirname']."/avatar/".$data['filename'].".".$data['extension'];        
                 $user['avatarUrls'] = [
-                    'max'=>url("storage/".$user->avatar),
-                    'large'=>url("storage/".$user->avatar),
-                    'medium'=>url("storage/".$user->avatar),
-                    'small'=>url("storage/".$user->avatar),
+                    'max'=>secure_url("storage/".$user->avatar),
+                    'large'=>secure_url("storage/".$user->avatar),
+                    'medium'=>secure_url("storage/".$user->avatar),
+                    'small'=>secure_url("storage/".$avatarFile),
                 ];
+                if(config('app.env') === 'local'){
+                    $user['avatarUrls'] = [
+                        'max'=>url("storage/".$user->avatar),
+                        'large'=>url("storage/".$user->avatar),
+                        'medium'=>url("storage/".$user->avatar),
+                        'small'=>url("storage/".$avatarFile),
+                    ];
+                }
             }else{
                 if($user->customer->gender=="Male"){
                     $user['avatarUrls'] = [
-                        'max'=>url("storage/media/avatar/X-man-large.jpg"),
-                        'large'=>url("storage/media/avatar/X-man-large.jpg"),
-                        'medium'=>url("storage/media/avatar/X-man-medium.jpg"),
-                        'small'=>url("storage/media/avatar/X-man-small.jpg"),
+                        'max'=>secure_url("storage/media/avatar/X-man-large.jpg"),
+                        'large'=>secure_url("storage/media/avatar/X-man-large.jpg"),
+                        'medium'=>secure_url("storage/media/avatar/X-man-medium.jpg"),
+                        'small'=>secure_url("storage/media/avatar/X-man-small.jpg"),
                     ];
+                    if(config('app.env') === 'local'){
+                        $user['avatarUrls'] = [
+                            'max'=>url("storage/media/avatar/X-man-large.jpg"),
+                            'large'=>url("storage/media/avatar/X-man-large.jpg"),
+                            'medium'=>url("storage/media/avatar/X-man-medium.jpg"),
+                            'small'=>url("storage/media/avatar/X-man-small.jpg"),
+                        ];
+                    }
                 }else{
                     $user['avatarUrls'] = [
-                        'max'=>url("storage/media/avatar/X-woman-large.jpg"),
-                        'large'=>url("storage/media/avatar/X-woman-large.jpg"),
-                        'medium'=>url("storage/media/avatar/X-woman-medium.jpg"),
-                        'small'=>url("storage/media/avatar/X-woman-small.jpg"),
+                        'max'=>secure_url("storage/media/avatar/X-woman-large.jpg"),
+                        'large'=>secure_url("storage/media/avatar/X-woman-large.jpg"),
+                        'medium'=>secure_url("storage/media/avatar/X-woman-medium.jpg"),
+                        'small'=>secure_url("storage/media/avatar/X-woman-small.jpg"),
                     ];
+                    if(config('app.env') === 'local'){
+                        $user['avatarUrls'] = [
+                            'max'=>url("storage/media/avatar/X-woman-large.jpg"),
+                            'large'=>url("storage/media/avatar/X-woman-large.jpg"),
+                            'medium'=>url("storage/media/avatar/X-woman-medium.jpg"),
+                            'small'=>url("storage/media/avatar/X-woman-small.jpg"),
+                        ];
+                    }
                 }
             }
         }

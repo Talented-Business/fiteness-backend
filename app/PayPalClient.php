@@ -19,14 +19,8 @@ class PayPalClient
 
     public static function apiContext()
     {
-        $testMode = env('PAYMENT_TEST_MODE');
-        if($testMode){
-            $clientId = env('PAYPAL_SANDBOX_CLIENT_ID');
-            $clientSecret = env('PAYPAL_SANDBOX_SECURITY_KEY');
-        }else{
-            $clientId = env('PAYPAL_CLIENT_ID');
-            $clientSecret = env('PAYPAL_SECURITY_KEY');
-        }
+        $clientId = config('paypal.client_id');
+        $clientSecret = config('paypal.secret');
         new \PayPal\Rest\ApiContext(
             new \PayPal\Auth\OAuthTokenCredential(
                 $clientId,
@@ -35,14 +29,12 @@ class PayPalClient
         );                  
     }
     public static function findKeys(){
-        $testMode = env('PAYMENT_TEST_MODE');
+        $testMode = config('app.payment_test_mode');
+        $clientId = config('paypal.client_id');
+        $clientSecret = config('paypal.secret');
         if($testMode){
-            $clientId = env('PAYPAL_SANDBOX_CLIENT_ID');
-            $clientSecret = env('PAYPAL_SANDBOX_SECURITY_KEY');
             $baseUrl = 'https://api.sandbox.paypal.com';
         }else{
-            $clientId = env('PAYPAL_CLIENT_ID');
-            $clientSecret = env('PAYPAL_SECURITY_KEY');
             $baseUrl = 'https://api.paypal.com';
         }
         return [$baseUrl,$clientId,$clientSecret];
@@ -54,14 +46,12 @@ class PayPalClient
      */
     public static function environment()
     {
-        $testMode = env('PAYMENT_TEST_MODE');
+        $testMode = config('app.payment_test_mode');
+        $clientId = config('paypal.client_id');
+        $clientSecret = config('paypal.secret');
         if($testMode){
-            $clientId = env('PAYPAL_SANDBOX_CLIENT_ID');
-            $clientSecret = env('PAYPAL_SANDBOX_SECURITY_KEY');
             return new SandboxEnvironment($clientId, $clientSecret);
         }else{
-            $clientId = env('PAYPAL_CLIENT_ID');
-            $clientSecret = env('PAYPAL_SECURITY_KEY');
             return new ProductionEnvironment($clientId, $clientSecret);
         }
     }

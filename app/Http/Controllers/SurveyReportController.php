@@ -10,14 +10,35 @@ use App\Survey;
 use App\Customer;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\CustomersExport;
+/**
+ * @group Survey Report   
+ *
+ * APIs for managing  survey report
+ */
 
 class SurveyReportController extends Controller{
+    /**
+     * search survey reports.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $surveyReports = new SurveyReport;
         $surveyReports->assignSearch($request);
         $indexData = $surveyReports->search($request);
         return response()->json(array('status'=>'ok','data'=>$indexData));
     }
+    /**
+     * create survey report.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request){
         $user = $request->user('api');
         if($request->exists("items")){
@@ -53,11 +74,27 @@ class SurveyReportController extends Controller{
             return response()->json(array('status'=>'failed'),422);
         }
     }
+    /**
+     * view survey report.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function view(Request $request){
         $surveyReports = new SurveyReport;
         $viewData = $surveyReports->viewDetail($request);
         return response()->json(array('status'=>'ok','data'=>$viewData));
     }
+    /**
+     * export survey reports.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function export(Request $request){
         $surveyReports = new SurveyReport;
         $reports = $surveyReports->findAnswersExport($request->input('survey_id'));

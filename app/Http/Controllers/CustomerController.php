@@ -2,11 +2,9 @@
 namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Redirect;
 use App\Customer;
 use App\Coupon;
@@ -16,14 +14,26 @@ use App\Height;
 use App\Condition;
 use App\Shortcode;
 use App\PaymentTocken;
-use App\PaymentSubscription;
-use App\Transaction;
 use App\Setting;
 use App\CustomerShortcode;
-use Maatwebsite\Excel\Facades\Excel;
+
+
+/**
+ * @group Customer
+ *
+ * APIs for managing  customer
+ */
 
 class CustomerController extends Controller
 {
+    /**
+     * create a customer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), Customer::validateRules());
@@ -39,6 +49,14 @@ class CustomerController extends Controller
             return response()->json(array('status'=>'failed','errors'=>$response));
         }
     }
+    /**
+     * update a customer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $validator = Validator::make($request->all(), Customer::validateRules());
@@ -56,9 +74,17 @@ class CustomerController extends Controller
             return response()->json(array('status'=>'failed','errors'=>$response));
         }
     }
+    /**
+     * show a customer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id,Request $request){
         $user = $request->user('api');
-        if($user->can('customers')){
+        if($user->can('customers')|| $user->can('social')){
             $customer = Customer::find($id);
             $customer->extends();
             //$customer['created_date'] = date("F d Y H:i",strtotime($customer->created_at));
@@ -67,9 +93,17 @@ class CustomerController extends Controller
             return response()->json(['status'=>'failed'],403);
         }    
     }
+    /**
+     * search customers.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $user = $request->user('api');
-        if($user->can('customers')){
+        if($user->can('customers') || $user->can('social')){
             $customer = new Customer;
             $customer->assignSearch($request);
             $result = $customer->search();
@@ -78,6 +112,14 @@ class CustomerController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * disable a customer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function disable($id,Request $request){
         $user = $request->user('api');
         if($user->can('customers')){
@@ -97,6 +139,14 @@ class CustomerController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * restore a customer.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function restore($id,Request $request){
         $user = $request->user('api');
         if($user->can('customers')){
@@ -116,6 +166,14 @@ class CustomerController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * get weights.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function weights(Request $request){
         return $this->getWeights($request);
     }
@@ -141,6 +199,14 @@ class CustomerController extends Controller
         }
         return [];
     }
+    /**
+     * delete weight.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function deleteWeight(Request $request){
         $user = $request->user('api');
         $id = $request->input('id');
@@ -150,6 +216,14 @@ class CustomerController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
+    /**
+     * update weight.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function updateWeight(Request $request){
         $user = $request->user('api');
         $unit = $user->customer->current_weight_unit;
@@ -164,6 +238,14 @@ class CustomerController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
+    /**
+     * create weight.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function storeWeight(Request $request){
         $user = $request->user('api');
         $unit = $user->customer->current_weight_unit;
@@ -178,6 +260,14 @@ class CustomerController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return $this->getWeights($request);
     }
+    /**
+     * get all conditions.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function conditions(){
         $conditions = Condition::all();
         foreach($conditions as $index=>$condition){
@@ -185,6 +275,14 @@ class CustomerController extends Controller
         }
         return response()->json($conditions);
     }
+    /**
+     * next condition.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function nextCondition(Request $request){
         $user = $request->user('api');
         $count = count(Condition::all());
@@ -196,6 +294,14 @@ class CustomerController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
+    /**
+     * previous condition.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function previousCondition(Request $request){
         $user = $request->user('api');
         if($user->customer->current_condition>0){
@@ -206,6 +312,14 @@ class CustomerController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
+    /**
+     * change condition.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function changeCondition(Request $request){
         $user = $request->user('api');
         $condition = $request->input('condition');
@@ -218,6 +332,14 @@ class CustomerController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->current_condition]);
     }
+    /**
+     * change object.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function changeObjective(Request $request){
         $user = $request->user('api');
         $objective = $request->input('goal');
@@ -227,33 +349,96 @@ class CustomerController extends Controller
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['condition'=>$user->customer->objective]);
     }
+    /**
+     * change weights.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function changeWeights(Request $request){
         $user = $request->user('api');
         $weights = $request->input('weights');
         $user->customer->weights = $weights;
+        if($user->customer->weights === 'sin pesas'){
+            $user->customer->dumbells_weight = null;
+        }
         $user->customer->save();
         if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
         return response()->json(['weights'=>$user->customer->weights]);
     }
+    /**
+     * recent workouts.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function recentWorkouts(Request $request){
         $user = $request->user('api');
-        $workouts = $user->customer->recentWorkouts();
-        if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
-        return response()->json(['workouts'=>$workouts,'profile'=>$user->customer->findMedal()]);
+        if($user->customer){
+            $workouts = $user->customer->recentWorkouts();
+            if($user->customer)\App\Jobs\Activity::dispatch($user->customer);
+            return response()->json(['workouts'=>$workouts,'profile'=>$user->customer->findMedal()]);
+        }else{
+            return response()->json(array('status'=>'forbidden'), 403);            
+        }
     }
-    public function export(Request $request)
+    public function exportReady(Request $request)
     {
         $user = $request->user('api');
         if($user->can('customers')){
-            $customer = new Customer;
-            $customer->assignSearch($request);
-            $customers = $customer->searchAll();
-            $export = Customer::export($customers);
-            return Excel::download($export,'customers.xlsx');   
+            if($request->exists('uid')){
+                $status = Cache::get('export-'.$request->uid);
+                if($status === 'start'){
+                    return response()->json(['uid'=>$request->uid, 'status'=>'start']);
+                } else if($status === 'completed') {
+                    return response()->json(['uid'=>$request->uid, 'status'=>'completed']);
+                }
+                return response()->json(['status'=>'failed'],500);
+            }else{
+                $uid = rand(0, 1000);
+                \App\Jobs\ExportCustomers::dispatch($uid, $request->search, $request->status);
+                return response()->json(['uid'=>$uid, 'status'=>'start']);
+            }
         }else{
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * export customers.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
+    public function export(Request $request)
+    {
+        $user = $request->user('api');
+        if($user->can('customers')){
+            if($request->exists('uid')){
+                $status = Cache::get('export-'.$request->uid);
+                if($status === 'completed') {
+                    $filePath = Storage::disk('local')->path("customers/$request->uid");
+                    return response()->download($filePath, 'customers.xlsx');
+                }
+            }
+            return response()->json(['status'=>'failed'],500);
+        }else{
+            return response()->json(['status'=>'failed'],403);
+        }
+    }
+    /**
+     * register activity.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function activity(Request $request){
         $column = $request->input('column');
         $user = $request->user('api');
@@ -263,13 +448,22 @@ class CustomerController extends Controller
         }
         return response()->json(['status'=>'ok']);
     }
+    /**
+     * redirect youtubelink.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function link(Request $request){
         $exist = false;
         if($request->exists('shortcode_id')){
             $shortcode = Shortcode::find($request->input('shortcode_id'));
             if($shortcode){
                 $exist = true;
-                $redirectLink = $shortcode->url;
+                $redirectLink = $shortcode->video_url;
+                if($redirectLink == null)$redirectLink = $shortcode->link;
             }
         }
         if(!$exist)$redirectLink = 'https://youtu.be/qcQJi0wb2Dg';
@@ -281,6 +475,14 @@ class CustomerController extends Controller
         }
         return Redirect::away($redirectLink);
     }
+    /**
+     * trigger workout.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function triggerWorkout(Request $request){
         $user = $request->user('api');
         if($user->customer){
@@ -290,6 +492,14 @@ class CustomerController extends Controller
             return response()->json(['status'=>$user->customer->active_email]);
         }
     }
+    /**
+     * trigger notofiable.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function triggerNotifiable(Request $request){
         $user = $request->user('api');
         if($user->customer){
@@ -300,6 +510,14 @@ class CustomerController extends Controller
         }
         return response()->json(['status'=>'failed'],403);
     }
+    /**
+     * show referral coupon.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function showReferralCoupon(Request $request){
         $user = $request->user('api');
         if($user->customer){
@@ -319,6 +537,14 @@ class CustomerController extends Controller
         }
         return response()->json(['status'=>'failed'],403);
     }
+    /**
+     * get referral.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function referral(Request $request){
         $user = $request->user('api');
         if($user->customer && $user->customer->hasActiveSubscription()){
@@ -329,6 +555,14 @@ class CustomerController extends Controller
         }
         return response()->json(['status'=>'failed']);
     }
+    /**
+     * get partners.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function partners(Request $request){
         $user = $request->user('api');
         if($user->customer && $user->customer->hasActiveSubscription()){
@@ -338,6 +572,14 @@ class CustomerController extends Controller
         }
         return response()->json(['status'=>'failed']);
     }
+    /**
+     * show a customer credit card.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function ccard(Request $request){
         $user = $request->user('api');
         if($user->customer){
@@ -347,14 +589,238 @@ class CustomerController extends Controller
         }
         return response()->json(['number'=>false]);
     }
+    /**
+     * show alternate shortcode.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function alternateShortcode(Request $request){
         $user = $request->user('api');
         if($user->customer){
-            $customerShortcode = CustomerShortcode::updateOrCreate(
-                ['customer_id' => $user->customer->id, 'shortcode_id' => $request->shortcode_id],
-                ['alternate_id' => $request->alternate_id]
-            );
-            return response()->json(['item'=>$customerShortcode]);
+            $shortcode = Shortcode::find($request->shortcode_id);
+            if($shortcode){
+                $customerShortcode = CustomerShortcode::updateOrCreate(
+                    ['customer_id' => $user->customer->id, 'shortcode_id' => $request->shortcode_id],
+                    ['alternate_id' => $request->alternate_id]
+                );
+                return response()->json(['item'=>$customerShortcode]);
+            }
+        }
+        return response()->json(['status'=>false],401);
+    }
+    /**
+     * get public customers and private customers.
+     * 
+     * This endpoint gets all public customers and private customers with active subscriptions.
+     * @authenticated
+     * @response {
+     *  "people"=>[
+     *      customers    
+     *  ],
+     *  "privateProfiles"=>[
+     *  customers
+     *  ],
+     * }
+     */
+    public function people(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            [$people, $privateProfiles] = $user->customer->getPeople();
+            return response()->json(['people'=>$people,'privateProfiles'=>$privateProfiles]);
+        }
+        return response()->json(['status'=>false],401);
+    }    
+    /**
+     * get newsfeed or suggested posts.
+     * 
+     * This endpoint returns newsfeed or suggested posts(posts id desc) .
+     * @authenticated
+     * @bodyParam suggested integer required    //if it is 0, it returns newsfeed, if it is 1, it returns suggested posts;
+     * @bodyParam post_id integer //latest post id, when appending post, it is used
+     * @response {
+     * 'newsfeed':
+     * [
+     *  {
+     *      id:'1',
+     *      content:"this is general post",
+     *      type:"general", // workout    
+     *      medias:[
+     *          {
+     *          url:"https://aws3.domain.com/shop.png"
+     *          type:"image", //or video,
+     *          width:400,
+     *          height:300,
+     *      }
+     *      ]
+     *  },
+     *  {
+     *      id:'2',
+     *      content:"this is workout post",
+     *      type:"workout", // 
+     *  },
+     *  {
+     *      id:'3',
+     *      type:"shop", // bechmark, blog, evento,
+     *      title:"This is shop title",
+     *      content:"This is shop content",
+     *      contentType:"html", //blog, evento
+     *      shopUsername:"shopusername",
+     *      shopLogo:{small:"https://aws3.domain.com/shop.png"},
+     *      customers:[
+     *          {
+     *              id:345,
+     *              chat_id:"4242"
+     *          }
+     *      ]
+     *  }
+     *  {
+     *      id:'2021-04-30-0',
+     *      type:"birthday", // 
+     *      label:"15 de abril",
+     *      customers:[
+     *          {
+     *              id:345,
+     *              chat_id:"4242"
+     *          }
+     *      ]
+     *  }
+     * ,
+     *  {
+     *      id:'9',
+     *      type:"join", // new customer
+     *      customer:
+     *          {
+     *              id:345,
+     *              first_name:"a",
+     *              chat_id:"4242"
+     *          }
+     *  }
+     * ,
+     *  {
+     *      id:'2021-04-23-w',
+     *      type:"workout-post", // workout content
+     *      title:"23 de abril, 2021",
+     *      content:"<p>This is workout content</p>",
+     *      contentType:"html",
+     *  }
+     * ],
+     * 'next':true //if true, it has next element, if false, it hasn't next element,
+     * }
+     */
+    public function newsfeed(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            [$newsfeed, $next] = $user->customer->getNewsfeed($request->post_id,$request->suggested);
+            return response()->json(['newsfeed'=>$newsfeed,'next'=>$next]);
+        }
+        return response()->json(['status'=>false],401);
+    }
+    /**
+     * get old newsfeed.
+     * 
+     * This endpoint returns already reading newsfeed.
+     * @authenticated
+     * @bodyParam post_id integer required //latest post id, when appending post, it is used if post_id is -1, it returns first post list
+     * @response {
+     * }
+     */
+    public function oldnewsfeed(Request $request){
+        $user = $request->user('api');
+        if($user->customer){
+            [$newsfeed,$next] = $user->customer->getOldNewsfeed($request->post_id);
+            return response()->json(['oldNewsfeed'=>$newsfeed,'next'=>$next]);
+        }
+        return response()->json(['status'=>false],401);
+    }
+    /**
+     * show customer profile.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
+    public function profile($id, Request $request){
+        $user = $request->user('api');
+        if($user->customer || $user->can('social')){
+            $customer = Customer::find($id);
+            $customer->getSocialDetails($user->customer->id);
+            $customer['medals'] = $customer->findMedal();
+            $customer['type'] = "customer";
+            return response()->json($customer);
+        }
+        return response()->json(['status'=>false],401);
+    }
+    /**
+     * update self's bumbells weight
+     * @authenticated
+     * @bodyParam weight float required
+     */
+    public function updateDumbellsWeight(Request $request){
+        $user = $request->user('api');
+        $validator = Validator::make($request->all(), array('weight'=>['required','numeric']));
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()],422);
+        }
+        if($user->customer){
+            $user->customer->dumbells_weight = $request->weight;
+            $user->customer->save();
+            $me = User::findDetails($user);
+            return response()->json(['user' => $me]);
+        }
+        return response()->json(['status'=>false],401);
+    }
+    /**
+     * get all customers except me containing expired customers
+     * @authenticated
+     */
+    public function all(Request $request){
+        $user = $request->user('api');
+        if(isset($user->customer)){
+            $search = $request->search;
+            $where = Customer::where(function($query) use ($search) {
+                $query->whereHas('user', function($q) use ($search){
+                    $q->where('active','=','1');
+                    $q->where('name','like',"%$search%");
+                });
+            })->where('id','!=',$user->customer->id);
+            $customers = $where->get();
+            foreach($customers as $customer){
+                $customer->display = $customer->first_name.' '.$customer->last_name;
+                $customer->getAvatar();
+                $customer->chat_id = $customer->user->chat_id;
+                unset($customer->user);
+                if($customer->mutedRelations->count()>0){
+                    $customer['relation'] = $customer->mutedRelations[0]->pivot->status;
+                }
+            }
+            return response()->json([
+                'customers'=>$customers
+            ]);
+        }
+        return response()->json([
+            'errors' => ['result'=>[['error'=>'failed']]]
+        ], 403);
+    }
+    /**
+     * update push notification token
+     * @authenticated
+     * @bodyParam token string required
+     */
+    public function pushNotificationToken(Request $request){
+        $user = $request->user('api');
+        $validator = Validator::make($request->all(), array('token'=>['required']));
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()],422);
+        }
+        if($user->customer){
+            $user->customer->push_notification_token = $request->token;
+            $user->customer->save();
+            $me = User::findDetails($user);
+            return response()->json(['user' => $me]);
         }
         return response()->json(['status'=>false],401);
     }

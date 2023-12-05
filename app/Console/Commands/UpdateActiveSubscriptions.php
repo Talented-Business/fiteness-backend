@@ -301,9 +301,9 @@ class UpdateActiveSubscriptions extends Command
             [887,2276,''],
             [888,2282,''],
         ];
-        if(env('INTERVAL_UNIT') != "MONTH") return;
-        print_r(env('INTERVAL_UNIT'));print_r("\n");
-        print_r(env('MAIL_DRIVER'));print_r("\n");
+        if(config('app.interval_unit') != "MONTH") return;
+        print_r(config('app.interval_unit'));print_r("\n");
+        print_r(config('mail.driver'));print_r("\n");
         foreach($items as $item){
             $subscription = Subscription::find($item[0]);
             $time = $this->nextPaymentTime($subscription,$item[1]);
@@ -362,7 +362,7 @@ class UpdateActiveSubscriptions extends Command
                 $paypalPlan = PaymentPlan::wherePlanId($subscription->payment_plan_id)->first();
                 if ($paypalPlan) {
                     list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paypalPlan->analyzeSlug();
-                    $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+                    $intervalUnit = strtolower(config('app.interval_unit'));
                     $cycles = $frequency;
                     $nextdatetime = date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($subscription->start_date)) . " +$cycles $intervalUnit"));
                     return $nextdatetime;
@@ -376,7 +376,7 @@ class UpdateActiveSubscriptions extends Command
         $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
         if($paymentSubscription){
             list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentSubscription->analyzeSlug();
-            $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+            $intervalUnit = strtolower(config('app.interval_unit'));
             switch($provider){
                 case 'nmi':
                     $cycles = $frequency;

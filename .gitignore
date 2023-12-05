@@ -1,6 +1,6 @@
 /node_modules
 /public/hot
-/database/seeds
+/public/docs
 /database/seeds/UsersTableSeeder.php
 /public/storage
 /storage/*.key

@@ -7,12 +7,25 @@ use App\Benchmark;
 use App\Event;
 use App\BenchmarkResult;
 use Illuminate\Support\Facades\Validator;
+/**
+ * @group Benchmark API
+ *
+ * APIs for managing  benchmark
+ */
 
 class BenchmarkController extends Controller
 {
     public function __construct(){
         $this->middleware('BenchmarkChangeData');
     }
+    /**
+     * create a benchmark.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $user = $request->user('api');
@@ -36,6 +49,14 @@ class BenchmarkController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * update a benchmark.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $user = $request->user('api');
@@ -59,11 +80,19 @@ class BenchmarkController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * show a benchmark.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id,Request $request){
         $user = $request->user('api');
         if($user->can('benchmarks')){
             $benchmark = Benchmark::find($id);
-            if($benchmark->image)  $benchmark->image = url('storage/'.$benchmark->image);
+            if($benchmark->image)  $benchmark->image = secure_url('storage/'.$benchmark->image);
             if($benchmark->post_date){
                 $benchmark['immediate'] = false;
                 $dates = explode(' ',$benchmark->post_date);
@@ -75,6 +104,14 @@ class BenchmarkController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * delete a benchmark.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id,Request $request){
         $user = $request->user('api');
         if($user->can('benchmarks')){
@@ -98,6 +135,14 @@ class BenchmarkController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * search benchmarks.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $user = $request->user('api');
         if($user->can('benchmarks')){
@@ -108,6 +153,14 @@ class BenchmarkController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * get published benchmarks.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function published(Request $request){
         $user = $request->user('api');
         $customer_id = $user->customer->id;
@@ -115,13 +168,21 @@ class BenchmarkController extends Controller
         // $result = Benchmark::where('status','=','Publish')->where('post_date','>',$user->customer->created_at)->get();
         $result = Benchmark::where('status','=','Publish')->get();
         foreach($result as $index=>$item){
-            if($item->image)  $item->image = url('storage/'.$item->image);
+            if($item->image)  $item->image = secure_url('storage/'.$item->image);
             $benchmarkResult = BenchmarkResult::where('customer_id','=',$customer_id)->where('benchmark_id','=',$item->id)->orderBy('recording_date', 'DESC')->first();
             if($benchmarkResult)$result[$index]['result']=$benchmarkResult->repetition;
             else $result[$index]['result']=0;
         }
         return response()->json(['published'=>$result]);
     }
+    /**
+     * disable a benchmark.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function disable($id,Request $request)
     {
         $user = $request->user('api');
@@ -137,6 +198,14 @@ class BenchmarkController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * active a benchmark.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function active($id,Request $request)
     {
         $user = $request->user('api');

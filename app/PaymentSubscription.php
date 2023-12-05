@@ -222,6 +222,10 @@ class PaymentSubscription extends Model
                             $subscription->transaction_id = $result['transaction']->id;
 			                if($subscription->end_date)$subscription->end_date = null;
                             $subscription->save();
+                            if($couponId){
+                                $coupon = Coupon::find($couponId);
+                                if($coupon)$subscription->customer->setFriendShip($coupon);
+                            }
                         }else{
                             if(in_array($customerId, Subscription::TRACK_CUSTOMER_IDS))Log::channel('nmiTrack')->info("---- end_date ----");
                             $subscription->end_date = date('Y-m-d H:i:s');
@@ -319,6 +323,7 @@ class PaymentSubscription extends Model
                     $this->save();
                 }
                 $this->renewalSendMail($transaction);
+                \App\Models\Notification::paymentRenewal($transaction->customer_id, $transaction);
                     // Return thank you page redirect
                 return array(
                     'result' => 'success',
@@ -331,6 +336,7 @@ class PaymentSubscription extends Model
                     $this->status = 'Cancelled';
                     $this->save();
                 }
+                \App\Models\Notification::declinedPayment($transaction->customer_id);
                 return [
                     'result' => 'failed',
                     'error_message' => $e->getMessage(),
@@ -409,7 +415,7 @@ class PaymentSubscription extends Model
         $paymentSubscription = PaymentSubscription::whereSubscriptionId($transaction->payment_subscription_id)->first();
         if($paymentSubscription){
             list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $paymentSubscription->analyzeSlug();
-            $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+            $intervalUnit = strtolower(config('app.interval_unit'));
             switch($provider){
                 case 'nmi':
                     $cycles = $frequency;
@@ -450,7 +456,7 @@ class PaymentSubscription extends Model
     }
     public function findEndDate(){//without transaction
         list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
-        $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+        $intervalUnit = strtolower(config('app.interval_unit'));
         $cycles = Transaction::whereStatus('Completed')->wherePaymentSubscriptionId($this->subscription_id)->count();
         if($cycles>0)return date("Y-m-d H:i:s", strtotime(date("Y-m-d H:i:s", strtotime($this->start_date)) . " +$cycles $intervalUnit"));
         return null;
@@ -489,7 +495,7 @@ class PaymentSubscription extends Model
             $subscription->gateway = $provider;
             $subscription->plan_id = $planId;
             if($subscription->start_date==null)$subscription->start_date = $this->start_date;
-            $intervalUnit = strtolower(env('INTERVAL_UNIT'));
+            $intervalUnit = strtolower(config('app.interval_unit'));
             $subscription->end_date = null; //date("Y-m-d H:i:s",strtotime("+$frequency $intervalUnit",strtotime($this->start_date)));
             if ($couponId) {
                 $subscription->coupon_id = $couponId;
@@ -619,24 +625,24 @@ class PaymentSubscription extends Model
     }
     public function sendFirstFreeMail($subscription){
         $customer = $this->customer;
-        list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
-        if($customer==null){
-            $customer = Customer::find($customerId);
-        }
-        $plan = SubscriptionPlan::find($planId);
-        $frequencyString = $subscription->convertFrequencyString($frequency);
-        if($couponId){
-            $coupon = Coupon::find($couponId);
-        }else{
-            $coupon = null;
-        }
-        $cycles = $subscription->plan->free_duration;
-        $nextPaymentDate = date('d/m/Y',strtotime($subscription->start_date." +$cycles day"));
-        $nextPaymentTotal = $this->nextPaymentAmount($coupon);
+        // list($provider, $planId, $customerId, $frequency, $couponId, $slug) = $this->analyzeSlug();
+        // if($customer==null){
+        //     $customer = Customer::find($customerId);
+        // }
+        // $plan = SubscriptionPlan::find($planId);
+        // $frequencyString = $subscription->convertFrequencyString($frequency);
+        // if($couponId){
+        //     $coupon = Coupon::find($couponId);
+        // }else{
+        //     $coupon = null;
+        // }
+        // $cycles = $subscription->plan->free_duration;
+        // $nextPaymentDate = date('d/m/Y',strtotime($subscription->start_date." +$cycles day"));
+        // $nextPaymentTotal = $this->nextPaymentAmount($coupon);
         if( $customer->user )SendEmail::dispatch($customer,new VerifyMail($customer->user));
         NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
         $data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer for free trial'];
-        Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
+        Mail::to(config('mail.from.address'), config('mail.from.name'))->cc(['degracia.jf@gmail.com','sui201837@gmail.com'])->queue(new MailQueue($data));
         $customer->sendFirstWorkout();
     }
     public function sendFirstMail($transaction, $sendableFirstWorkout=true, $bank=false){
@@ -658,7 +664,7 @@ class PaymentSubscription extends Model
         if(!$bank)SendEmail::dispatch($customer,new FirstPaymentNotification($customer->first_name,$frequencyString,$frequency,$amount,$transaction->total,$coupon,date('d/m/Y',strtotime($transaction->done_date)),$nextPaymentDate,$nextPaymentTotal));
         if($sendableFirstWorkout)NotifySubscriber::dispatch($customer,new \App\Mail\NotifySubscriber($customer))->delay(now()->addDays(7));
         $data = ['first_name'=>$customer->first_name,'last_name'=>$customer->last_name,'email'=>$customer->email,'gender'=>$customer->gender,'view_file'=>'emails.customers.create','subject'=>'Checkout Completed Customer for paid'];
-        Mail::to(env("MAIL_FROM_ADDRESS"), env("MAIL_FROM_NAME"))->queue(new MailQueue($data));
+        Mail::to(config('mail.from.address'), config('mail.from.name'))->cc(['degracia.jf@gmail.com','sui201837@gmail.com'])->queue(new MailQueue($data));
         if($sendableFirstWorkout)$customer->sendFirstWorkout();
     }
 }

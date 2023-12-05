@@ -20,7 +20,7 @@ class CouponInvitationEmail extends Mailable
      */
     public function __construct($id,$expiration)
     {
-        $this->url = env('APP_URL').Coupon::EMAIL_INVITATION_URL.$id;
+        $this->url = config('app.url').Coupon::EMAIL_INVITATION_URL.$id;
         if($expiration)$this->expiration = ucfirst(iconv('ISO-8859-2', 'UTF-8', strftime("%A, %d de %B del %Y", strtotime($expiration))));
     }
 

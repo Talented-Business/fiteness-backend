@@ -43,7 +43,7 @@ class StaticWorkout extends Model
                 $contents[$day] = [0=>null,1=>null,2=>null,3=>null,4=>null,5=>null,6=>null];
             }
             $weekDay = self::convertWeekDay($record->weekdate);
-            if(isset($record->image_path)&&$record->image_path)$record->image_path = env('APP_URL').$record->image_path;
+            if(isset($record->image_path)&&$record->image_path)$record->image_path = config('app.url').$record->image_path;
             $contents[$day][$weekDay] = $record;
         }
         return $contents;
@@ -137,7 +137,15 @@ class StaticWorkout extends Model
             $workout->image_path = '/storage/' . $basePath . '/' . $fileName;
             $workout->save();
         }        
-        if($workout->image_path!=null)$workout->image_path = env('APP_URL').$workout->image_path;
+        if($workout->image_path!=null)$workout->image_path = config('app.url').$workout->image_path;
+        return $workout;
+    }
+    public static function removeImage($request){
+        $fromDate = self::convertWeekDate($request->input('from_date'));
+        $weekdate = self::convertWeekDate($request->input('weekdate'));
+        $workout = self::whereFromDate($fromDate)->whereWeekdate($weekdate)->first();
+        $workout->image_path = null;
+        $workout->save();
         return $workout;
     }
     public static function preview($request)

@@ -15,6 +15,8 @@ class AppendUsernameCustomersTable extends Migration
     {
         Schema::table('customers', function (Blueprint $table) {
             $table->string('username')->unique()->nullable();
+            $table->enum('profile',['public','private'])->default('public');
+            $table->string('description',2200)->nullable();
         });
     }
 
@@ -27,6 +29,8 @@ class AppendUsernameCustomersTable extends Migration
     {
         Schema::table('customers', function (Blueprint $table) {
             $table->dropColumn('username');
+            $table->dropColumn('profile');
+            $table->dropColumn('description');
         });
     }
 }

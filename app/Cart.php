@@ -62,7 +62,7 @@ class Cart extends Model
             $diff = time() - strtotime($item->updated_at->toString());
             if($item->mail == "no"){
                 if($item->out == 'no'){
-                    if($diff>env('SESSION_TIMEOUT')*60){
+                    if($diff>config('app.session_timeout')*60){
                         $item->out = time();
                         $item->save();
                     }
@@ -80,7 +80,7 @@ class Cart extends Model
         if($this->customer->hasSubscription()){
             $coupon = Coupon::find($cartAbandonSetting['renewal_coupon_id']);
             if($coupon){
-                $url = env('APP_URL').'/#checkout?cart='.$this->id;
+                $url = config('app.url').'/#checkout?cart='.$this->id;
                 Mail::to($this->customer->email)->send(new CartAbandonedRenewal($this->customer->first_name,intval($coupon->discount).$coupon->form,$url));
             }else{
                 //print_r('emailRenewalSend');print_r($cartAbandonSetting['renewal_coupon_id']);
@@ -89,7 +89,7 @@ class Cart extends Model
         }else{
             $coupon = Coupon::find($cartAbandonSetting['new_coupon_id']);
             if($coupon){
-                $url = env('APP_URL').'/#checkout?cart='.$this->id;
+                $url = config('app.url').'/#checkout?cart='.$this->id;
                 Mail::to($this->customer->email)->send(new CartAbandonedNew($this->customer->first_name,intval($coupon->discount).$coupon->form,$url,$coupon->code,$coupon->name));
             }else{
                 //print_r('emailNewSend');print_r($cartAbandonSetting['new_coupon_id']);//[new_coupon_id]

@@ -14,7 +14,7 @@ class CreateMediasTable extends Migration
     public function up()
     {
         Schema::create('medias', function (Blueprint $table) {
-            $table->id();
+            $table->bigIncrements('id');
             $table->enum('type', ['image','video', 'file'])->default('image');
             $table->string('mime_type');
             $table->string('alt_text')->nullable();
@@ -23,7 +23,10 @@ class CreateMediasTable extends Migration
             $table->string('src');
             $table->string('url')->nullable();
             $table->unsignedInteger('position')->default(0);
-            $table->enum('attachment', ['post','other'])->default('post');
+            $table->unsignedBigInteger('post_id')->nullable();
+            $table->float('width')->nullable();
+            $table->float('height')->nullable();
+            $table->enum('attachment', ['post','event','other'])->default('post');
             $table->timestamps();
         });
     }

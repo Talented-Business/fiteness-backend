@@ -126,7 +126,7 @@ class PayPalPlan
     }
     private static function create($servicePlan, $customer, $coupon, $frequency)
     {
-        $intervalUnit = env('INTERVAL_UNIT');//'DAY' or "MONTH";
+        $intervalUnit = config('app.interval_unit');//'DAY' or "MONTH";
         $paymentPreferences = ['setup_fee' => ['currency_code' => 'USD', 'value' => 0]];
         list($description, $firstSequencePrice, $secondSequencePrice) = self::getData($servicePlan, $customer, $coupon, $frequency);
         $billingCycles = [

@@ -18,7 +18,7 @@ trait WorkoutTrait
         $content = str_ireplace("{/h2}", "</h2>", $content);
         $shortcodes = Shortcode::where('status', '=', 'Active')->get();
         foreach ($shortcodes as $shortcode) {
-            $url = env('APP_URL').'/api/customers/link?shortcode_id='.$shortcode->id;
+            $url = config('app.url').'/api/customers/link?shortcode_id='.$shortcode->id;
             if($customerId)$url = $url.'&&customer_id='.$customerId;
             else $url = $shortcode->link;
             $content = str_replace("{{$shortcode->name}}", "<a href='$url' target='_blank'>$shortcode->name</a>", $content);
@@ -103,7 +103,7 @@ trait WorkoutTrait
         }
         return $results;
     }
-    private static function getNotes($record, $slug,$customerId = null){
+    private static function getNotes($record, $slug,$customerId = null, $publishDate=null){
         $result = null;
         if($customerId){
             $customer = Customer::find($customerId);
@@ -125,6 +125,7 @@ trait WorkoutTrait
         }
         if(Workout::UPDATE){
             $result = null;
+            $multiplerPattern = '/\d{1,2}/';
             if(isset($record->{$slug.'_element'})&&$record->{$slug.'_element'}){
                 if(is_array($record->{$slug.'_element'}))$lines = $record->{$slug.'_element'};
                 else $lines = unserialize($record->{$slug.'_element'});
@@ -135,6 +136,24 @@ trait WorkoutTrait
                 foreach($lines as $index=>$line){
                     if(isset($line['video']) && $line['video']['id']){
                         $lines[$index]['video'] = self::findShortcode($line['video']['id'],$customerId);
+                        if(isset($line['before_content'])){
+                            $check = preg_match($multiplerPattern, $line['before_content'],$keywords);
+                            if($check){
+                                $multipler = $keywords[0];
+                                $beforeContent = str_replace($keywords[0],"@@multipler@@",$line['before_content']);
+                                $beforeContent = ['content'=>$beforeContent,'multipler'=>$multipler];
+                                $line['before_content'] = $beforeContent;
+                            }            
+                        }
+                        if(isset($line['after_content'])){
+                            $check = preg_match($multiplerPattern, $line['after_content'], $keywords);
+                            if($check){
+                                $multipler = $keywords[0];
+                                $afterContent = str_replace($keywords[0],"@@multipler@@",$line['after_content']);
+                                $afterContent = ['content'=>$afterContent,'multipler'=>$multipler];
+                                $line['after_content'] = $afterContent;
+                            }      
+                        }
                         $lines[$index]['line'] = $line;
                     }
                     if(isset($line['before_content']) ){
@@ -153,7 +172,7 @@ trait WorkoutTrait
                         if(is_array($line['after_content'])){
                             if(isset($customer))$line['after_content']['content'] = str_ireplace("{name}", $customer->first_name, $line['after_content']['content']);                        
                             if($lines[$index]['video']){
-                                $lines[$index]['after_content'] = str_replace("@@multipler@@", round($line['after_content']['multipler'] / $lines[$index]['video']['multipler']),$line['after_content']['content']);
+                                $lines[$index]['after_content'] = str_replace("@@multipler@@", round($line['after_content']['multipler'] * $lines[$index]['video']['multipler']),$line['after_content']['content']);
                             }else{
                                 $lines[$index]['after_content'] = str_replace("@@multipler@@", $line['after_content']['multipler'],$line['after_content']['content']);
                             }
@@ -181,9 +200,23 @@ trait WorkoutTrait
                         $result['timer_rest'] = $record->{$slug.'_timer_rest'};
                     }
                 }
+                if($publishDate){
+                    $result['comment'] = self::hasComment($slug, $publishDate, $customer);
+                    $result['has_comment'] = $result['comment']?true:false;
+                }
             }
         }
         return $result;
+    }
+    private static function hasComment($slug, $publishDate, $customer){
+        if(in_array($slug,['sin_content','con_content'])){
+            $comment = \App\Models\WorkoutComment::whereCustomerId($customer->id)->whereType('basic')->wherePublishDate($publishDate)->first();
+            return $comment;
+        }else if(in_array($slug,['extra_sin', 'fit', 'strong_male', 'strong_female', 'cardio'])){
+            $comment = \App\Models\WorkoutComment::whereCustomerId($customer->id)->whereType('extra')->wherePublishDate($publishDate)->first();
+            return $comment;
+        }
+        return null;
     }
     protected static function  getTitleFromColumn($column){
         switch($column){
@@ -226,7 +259,7 @@ trait WorkoutTrait
         $weekday = strtolower(date('l', strtotime($publishDate)));
         if (isset($workoutCondition[$weekday]) && $workoutCondition[$weekday]) {
             $block = ['content'=>$record->comentario,'slug'=>'comentario'];
-            if($record->image_path)$block['image_path'] = env('APP_URL').$record->image_path;
+            if($record->image_path)$block['image_path'] = config('app.url').$record->image_path."?time=".strtotime($record->update_at);
             $blocks = [$block];
             $block = self::getNotes($record,'calentamiento');
             if($block)$blocks[] = $block;
@@ -311,7 +344,7 @@ trait WorkoutTrait
                         $content = "{h2}$title{/h2}\n".$record->blog;
                     }
                     $block = ['content'=>$record->blog,'timer_type'=>$record->blog_timer_type,'timer_work'=>$record->blog_timer_work,'timer_rest'=>$record->blog_timer_rest,'timer_round'=>$record->blog_timer_round,'timer_description'=>$record->blog_timer_description];
-                    if($record->image_path)$block['image_path'] = env('APP_URL').$record->image_path;
+                    if($record->image_path)$block['image_path'] = config('app.url').$record->image_path;
                     $blocks = [$block];
                 }else{
                     $content = null;
@@ -486,7 +519,7 @@ trait WorkoutTrait
                         if(isset($customer))$afterContent = str_ireplace("{name}", $customer->first_name, $afterContent);
                         if(isset($line['video'])){
                             if($email){
-                                $url = env('APP_URL').'/api/customers/link?shortcode_id='.$line['video']['id'];
+                                $url = config('app.url').'/api/customers/link?shortcode_id='.$line['video']['id'];
                                 if($customerId)$url = $url.'&&customer_id='.$customerId;            
                                 $result .= "<p>".$beforeContent."<a href=".$url.">".$line['video']['name']."</a>".$afterContent."</p>";
                             }
@@ -506,10 +539,10 @@ trait WorkoutTrait
         $weekday = strtolower(date('l', strtotime($publishDate)));
         $content = '';
         if (isset($workoutCondition[$weekday]) && $workoutCondition[$weekday]) {
-            $block = self::getNotes($record,'comentario',$customerId);
-            if($record->image_path)$block['image_path'] = env('APP_URL').$record->image_path;
+            $block = self::getNotes($record,'comentario',$customerId, $publishDate);
+            if($record->image_path)$block['image_path'] = config('app.url').$record->image_path.'?time='.$record->updated_at->timestamp;
             $blocks = [$block];
-            $block = self::getNotes($record,'calentamiento',$customerId);
+            $block = self::getNotes($record,'calentamiento',$customerId, $publishDate);
             if($block)$blocks[] = $block;
             // $content = self::convertArray($record->comentario_element,'comentario',true,$customerId)[0].self::convertArray($record->calentamiento_element,'calentamiento',true,$customerId)[0];
             $sinContent = false;
@@ -521,11 +554,11 @@ trait WorkoutTrait
             if (strpos($workoutFilter, 'Workout')!==false) {
                 if ($sinContent) {
                     // $content = $content.self::convertArray($record->sin_content_element,'sin_content',true,$customerId)[0];
-                    $block = self::getNotes($record,'sin_content',$customerId);
+                    $block = self::getNotes($record,'sin_content',$customerId, $publishDate);
                     if($block)$blocks[] = $block;
                 } else {
                     // $content = $content.self::convertArray($record->con_content_element,'con_content',true,$customerId)[0];
-                    $block = self::getNotes($record,'con_content',$customerId);
+                    $block = self::getNotes($record,'con_content',$customerId, $publishDate);
                     if($block)$blocks[] = $block;
                 }
             }
@@ -551,12 +584,12 @@ trait WorkoutTrait
             if (strpos($workoutFilter, 'Extra')!==false ) {
                 if($sinContent){
                     // $content = $content.self::convertArray($record->extra_sin_element,'extra_sin',true,$customerId)[0];
-                    $block = self::getNotes($record,'extra_sin',$customerId);
+                    $block = self::getNotes($record,'extra_sin',$customerId, $publishDate);
                     if($block)$blocks[] = $block;
                 }else {
                     // $content = $content . "\n" . $objectiveContent;
                     if( $objectKey ){
-                        $block = self::getNotes($record,$objectKey,$customerId);
+                        $block = self::getNotes($record,$objectKey,$customerId, $publishDate);
                         if($block)$blocks[] = $block;
                     }
                 }
@@ -564,15 +597,15 @@ trait WorkoutTrait
 
             if (strpos($workoutFilter, 'Activo')!==false) {
                 // $content = $content.self::convertArray($record->activo_element,'activo',true,$customerId)[0];
-                $block = self::getNotes($record,'activo',$customerId);
+                $block = self::getNotes($record,'activo',$customerId, $publishDate);
                 if($block)$blocks[] = $block;
             }
             if (strpos($workoutFilter, 'Blog')!==false) {
                 $blog = true;
                 if($record->blog){
                     // $content = self::convertArray($record->blog_element,'blog',true,$customerId)[0];
-                    $block = self::getNotes($record,'blog',$customerId);
-                    if($record->image_path)$block['image_path'] = env('APP_URL').$record->image_path;
+                    $block = self::getNotes($record,'blog',$customerId, $publishDate);
+                    if($record->image_path)$block['image_path'] = config('app.url').$record->image_path.'?time='.$record->updated_at->timestamp;
                     $blocks = [$block];
                 }else{
                     // $content = null;
@@ -612,7 +645,7 @@ trait WorkoutTrait
                                         $content = $content.$line['before_content'];
                                     }
                                     if(isset($line['video']) && $line['video']){
-                                        $url = env('APP_URL').'/api/customers/link?shortcode_id='.$line['video']['id'];
+                                        $url = config('app.url').'/api/customers/link?shortcode_id='.$line['video']['id'];
                                         if($customerId)$url = $url.'&&customer_id='.$customerId;
                                         $content = $content."<a href='".$url."' target='_blank'>".$line['video']['name']."</a>";
                                     }
@@ -626,12 +659,13 @@ trait WorkoutTrait
                     }
                 }
             }
-            if($content)return ['date' => $spanishDate,'short_date' => $spanishShortDate, 'content' => $content,'blog'=>$blog,'blocks'=>$blocks];
+            if($content)return ['date' => $spanishDate,'short_date' => $spanishShortDate, 'content' => $content,'blog'=>$blog,'blocks'=>$blocks,'image_path'=>$record->image_path?config('app.url').$record->image_path.'?time='.$record->updated_at->timestamp:null,'publish_date'=>$publishDate];
         }    
         return null;
     }
     private static function findShortcode($shortcodeId, $customerId){
         $shortcode = Shortcode::find($shortcodeId);
+        if($shortcode === null) return null;
         $video=[
             'name'=>$shortcode->name,
             'id'=>$shortcode->id,
@@ -674,28 +708,12 @@ trait WorkoutTrait
             ];
         }
         if( $customerId ){
+            $customer = Customer::find($customerId);
             $customerShortcode = CustomerShortcode::whereCustomerId($customerId)->whereShortcodeId($shortcodeId)->first();
-            $change = false;
-            if($customerShortcode){
-                if($customerShortcode->alternate_id != $shortcodeId){
-                    $diffDates = (time() - strtotime($customerShortcode->created_at->format('Y-m-d H:i:s')))/3600/24;
-                    if($diffDates<$customerShortcode->alternate->time){
-                        if($customerShortcode->alternate_id == $shortcode->alternate_a)$change = "a";
-                        if($customerShortcode->alternate_id == $shortcode->alternate_b)$change = "b";
-                    }
-                }
+            if($customerShortcode === null){
+                $customerShortcode = CustomerShortcode::createFirstItem($customer, $shortcode);
             }
-            if(!$change){
-                $customer = Customer::find($customerId);
-                if($shortcode->level > $customer->current_condition){
-                    if($alternativeA->level == $customer->current_condition){
-                        $change = "a";
-                    }
-                    if($alternativeB->level == $customer->current_condition){
-                        $change = "b";
-                    }
-                }
-            }
+            $change = $customerShortcode->getChange();
             if($change){
                 if($change == "a"){
                     $video['name']=$alternativeA->name;
@@ -704,20 +722,39 @@ trait WorkoutTrait
                     $video['time']=$alternativeA->time;
                     $video['level']=$alternativeA->level;
                     $video['instruction']=$alternativeA->instruction;
-                    $video['alternate_a'] = [
-                        'name'=>$shortcode->name,
-                        'id'=>$shortcode->id,
-                        'instruction'=>$shortcode->instruction,
-                        'url'=>$shortcode->video_url,
-                        'time'=>$shortcode->time,
-                        'level'=>$shortcode->level,    
-                        'multipler'=>1,
-                    ];
-                    if($shortcode->multipler_a){
-                        $video['multipler'] = $shortcode->multipler_a;
-                        $video['multipler_a'] = 1;
-                        $video['original_multipler'] = $shortcode->multipler_a;
+                    if($shortcode->alternate_b){
+                        $video['alternate_b'] = [
+                            'name'=>$shortcode->name,
+                            'id'=>$shortcode->id,
+                            'instruction'=>$shortcode->instruction,
+                            'url'=>$shortcode->video_url,
+                            'time'=>$shortcode->time,
+                            'level'=>$shortcode->level,    
+                            'multipler'=>1,
+                        ];
+                        $video['alternate_a'] = [
+                            'name'=>$alternativeB->name,
+                            'id'=>$alternativeB->id,
+                            'instruction'=>$alternativeB->instruction,
+                            'url'=>$alternativeB->video_url,
+                            'time'=>$alternativeB->time,
+                            'level'=>$alternativeB->level,    
+                            'multipler'=>1,
+                        ];
+                    }else{
+                        $video['alternate_a'] = [
+                            'name'=>$shortcode->name,
+                            'id'=>$shortcode->id,
+                            'instruction'=>$shortcode->instruction,
+                            'url'=>$shortcode->video_url,
+                            'time'=>$shortcode->time,
+                            'level'=>$shortcode->level,    
+                            'multipler'=>1,
+                        ];
                     }
+                    $video['multipler'] = $shortcode->multipler_a;
+                    $video['multipler_a'] = 1;
+                    $video['original_multipler'] = $shortcode->multipler_a;
                 }
                 if($change == "b"){
                     $video['name']=$alternativeB->name;
@@ -726,20 +763,39 @@ trait WorkoutTrait
                     $video['time']=$alternativeB->time;
                     $video['level']=$alternativeB->level;
                     $video['instruction']=$alternativeB->instruction;
-                    $video['alternate_b'] = [
-                        'name'=>$shortcode->name,
-                        'id'=>$shortcode->id,
-                        'instruction'=>$shortcode->instruction,
-                        'url'=>$shortcode->video_url,
-                        'time'=>$shortcode->time,
-                        'level'=>$shortcode->level,    
-                        'multipler'=>1,
-                    ];
-                    if($shortcode->alternate_b){
-                        $video['multipler'] = $shortcode->multipler_b;
-                        $video['multipler_b'] = 1;
-                        $video['original_multipler'] = $shortcode->multipler_b;
+                    if($shortcode->alternate_a){
+                        $video['alternate_a'] = [
+                            'name'=>$shortcode->name,
+                            'id'=>$shortcode->id,
+                            'instruction'=>$shortcode->instruction,
+                            'url'=>$shortcode->video_url,
+                            'time'=>$shortcode->time,
+                            'level'=>$shortcode->level,    
+                            'multipler'=>1,
+                        ];
+                        $video['alternate_b'] = [
+                            'name'=>$alternativeA->name,
+                            'id'=>$alternativeA->id,
+                            'instruction'=>$alternativeA->instruction,
+                            'url'=>$alternativeA->video_url,
+                            'time'=>$alternativeA->time,
+                            'level'=>$alternativeA->level,    
+                            'multipler'=>1,
+                        ];
+                    }else{
+                        $video['alternate_b'] = [
+                            'name'=>$shortcode->name,
+                            'id'=>$shortcode->id,
+                            'instruction'=>$shortcode->instruction,
+                            'url'=>$shortcode->video_url,
+                            'time'=>$shortcode->time,
+                            'level'=>$shortcode->level,    
+                            'multipler'=>1,
+                        ];
                     }
+                    $video['multipler'] = $shortcode->multipler_b;
+                    $video['multipler_b'] = 1;
+                    $video['original_multipler'] = $shortcode->multipler_b;
                 }
             }
         }

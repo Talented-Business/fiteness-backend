@@ -17,7 +17,7 @@ class CreateLikesTable extends Migration
             $table->bigIncrements('id');
             $table->unsignedBigInteger('activity_id');//social activity
             $table->unsignedBigInteger('customer_id');
-            $table->enum('active',['yes','no']);
+            $table->enum('active',['yes','no'])->default("yes");
             $table->timestamps();
         });
     }

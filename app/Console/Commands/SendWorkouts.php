@@ -46,7 +46,7 @@ class SendWorkouts extends Command
         if(count($customers)>0){
             $customerList = [];
             foreach($customers as $customer){
-                if($customer->hasActiveSubscription() && $customer->country_code=='pa' && $customer->id == 3){
+                if($customer->hasActiveSubscription() && $customer->user->active == 1 && $customer->id == 6965){
                     $userTimezone = new \DateTimeZone($customer->timezone);
                     $objDateTime = new \DateTime('NOW');
                     $objDateTime->setTimezone($userTimezone);

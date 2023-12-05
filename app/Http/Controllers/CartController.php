@@ -5,13 +5,35 @@ use Illuminate\Support\Facades\Validator;
 use App\Cart;
 use App\SubscriptionPlan;
 
+/**
+ * @group Cart
+ *
+ * APIs for managing  cart
+ */
+
 class CartController extends Controller
 {
+    /**
+     * inside cart
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function inside(Request $request)
     {
         $cart = Cart::inside($request);
         return response()->json(array('status'=>'ok','cart'=>$cart));
     }
+    /**
+     * outside cart.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function outside(Request $request)
     {
         $user = $request->user('api');
@@ -19,6 +41,14 @@ class CartController extends Controller
         if($cart)$cart->outside();
         return response()->json(array('status'=>'ok','cart'=>$cart));
     }
+    /**
+     * show cart.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id,Request $request){
         $cart = Cart::find($id);
         $user = $request->user('api');

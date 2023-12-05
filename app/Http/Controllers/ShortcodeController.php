@@ -5,6 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Shortcode;
 use Illuminate\Support\Facades\Validator;
+/**
+ * @group Shortcode    on workout
+ *
+ * APIs for managing  shortcodes on workout
+ */
 
 class ShortcodeController extends Controller
 {
@@ -12,6 +17,14 @@ class ShortcodeController extends Controller
     {
         $this->middleware(['permission:shortcodes']);
     }
+    /**
+     * create a shortcode.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), Shortcode::validateRules());
@@ -27,6 +40,14 @@ class ShortcodeController extends Controller
         }        
         return response()->json(array('status'=>'ok','shortcode'=>$shortcode));
     }
+    /**
+     * update a shortcode.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $validator = Validator::make($request->all(), Shortcode::validateRules($id));
@@ -41,6 +62,14 @@ class ShortcodeController extends Controller
         $shortcode->save();
         return response()->json(array('status'=>'ok','shortcode'=>$shortcode));
     }
+    /**
+     * show a shortcode.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $shortcode = Shortcode::find($id);
         if($shortcode && $shortcode->mail==null){
@@ -69,6 +98,14 @@ class ShortcodeController extends Controller
         }
         return response()->json($shortcode);
     }
+    /**
+     * delete a shortcode.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id){
         $shortcode = Shortcode::find($id);
         if($shortcode){
@@ -87,27 +124,67 @@ class ShortcodeController extends Controller
         }        
         return response()->json($data);
     }
+    /**
+     * search shortcodes.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $shortcode = new Shortcode;
         $shortcode->assignSearch($request);
         return response()->json($shortcode->search());
     }
+    /**
+     * disable a shortcode.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function disable($id){
         $shortcode = Shortcode::find($id);
         $shortcode->status = "Inactive";
         $shortcode->save();
         return response()->json($shortcode);
     }
+    /**
+     * active a shortcode.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function active($id){
         $shortcode = Shortcode::find($id);
         $shortcode->status = "Active";
         $shortcode->save();
         return response()->json($shortcode);
     }
+    /**
+     * get active shortcode list.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function list(){
         $shortcodes = Shortcode::whereStatus('Active')->get();
         return response()->json($shortcodes);
     }
+    /**
+     * get a shortcode size.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function getSize(){
         $shortcode = new Shortcode;
         return response()->json($shortcode->getMaximumFileUploadSize());

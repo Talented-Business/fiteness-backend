@@ -5,9 +5,22 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\PaymentTocken;
 use Illuminate\Support\Facades\Validator;
+/**
+ * @group Payment Token   
+ *
+ * APIs for managing  payment tokens
+ */
 
 class PaymentTockenController extends Controller
 {
+    /**
+     * create a payment token.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $validator = Validator::make($request->input('nmi'), PaymentTocken::validateRules());
@@ -23,6 +36,14 @@ class PaymentTockenController extends Controller
             return response()->json(['status' => 'failed', 'errors'=>$result['error_message']],422);
         }
     }
+    /**
+     * update a payment token.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request)
     {
         $validator = Validator::make($request->input('nmi'), PaymentTocken::validateRules());
@@ -38,6 +59,14 @@ class PaymentTockenController extends Controller
             return response()->json(['status' => 'failed', 'errors'=>$result['error_message']],422);
         }
     }
+    /**
+     * show a payment token.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id){
         $tocken = PaymentTocken::find($id);
         if($tocken->mail==null){
@@ -45,6 +74,14 @@ class PaymentTockenController extends Controller
         }
         return response()->json($tocken);
     }
+    /**
+     * delete a payment token.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id,Request $request){
         $tocken = PaymentTocken::find($id);
         $user = $request->user('api');
@@ -74,6 +111,14 @@ class PaymentTockenController extends Controller
         }        
         return response()->json($data);
     }
+    /**
+     * search payment tokens.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $tocken = new PaymentTocken;
         $tocken->assignSearch($request);

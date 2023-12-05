@@ -7,10 +7,22 @@ use App\Survey;
 use App\SurveyItem;
 use App\SurveySelect;
 use Illuminate\Support\Facades\Validator;
+/**
+ * @group Survey   
+ *
+ * APIs for managing  survey
+ */
 
 class SurveyController extends Controller
 {
-    //
+    /**
+     * create a survey.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function store(Request $request)
     {
         $survey = new Survey;
@@ -18,16 +30,40 @@ class SurveyController extends Controller
         $survey->save();
         return response()->json(array('status'=>'ok','survey'=>$survey));
     }
+    /**
+     * search active surveys.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function active(Request $request){
         $survey = new Survey;
         $survey->assignActiveSearch($request);
         return response()->json($survey->searchActive());
     }
+    /**
+     * create inactive surveys.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function inactive(Request $request){
         $survey = new Survey;
         $survey->assignInactiveSearch($request);
         return response()->json($survey->searchInactive());
     } 
+    /**
+     * delete a survey.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function destroy($id){
         $survey = Survey::find($id);
         if($survey){
@@ -36,6 +72,14 @@ class SurveyController extends Controller
         }
         return response()->json(array('status'=>'failed'),500);
     }
+    /**
+     * show a survey.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id,Request $request){
         $survey = Survey::find($id);        
         $items = $survey->items;
@@ -48,12 +92,28 @@ class SurveyController extends Controller
 
         return response()->json(array('survey'=>$survey,'items'=>$items,'status'=>"ok",'options'=>$options));
     }
+    /**
+     * update a survey.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function update($id,Request $request){
         $survey = Survey::find($id);
         $survey->assign($request);
         $survey->save();
         return response()->json(array('status'=>'ok','survey'=>$survey));
     }
+    /**
+     * get current survey for me.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function me(Request $request){
         $user = $request->user('api');
         $survey = null;
@@ -63,6 +123,14 @@ class SurveyController extends Controller
         }
         return response()->json(array('status'=>'ok','survey'=>$survey));
     }
+    /**
+     * get current survey for me.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function report(Request $request){
         $user = $request->user('api');
         $survey = null;

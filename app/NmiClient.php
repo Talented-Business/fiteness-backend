@@ -9,13 +9,13 @@ class NmiClient
     private $currency = 'USD';
     private $username;
     private $password;
-    private $addCustomerMethod = 'validate';
+    private $addCustomerMethod = 'auth';
     private $customerReceipt = false;
     public function __construct()
     {
-        $this->username = env('NMI_USERNAME');
-        $this->password = env('NMI_PASSWORD');
-        $this->securityKey = env('NMI_SECURITY_KEY');
+        $this->username = config('app.nmi_username');
+        $this->password = config('app.nmi_password');
+        $this->securityKey = config('app.nmi_security_key');
     }
     public function deleteCustomerVault($token,$customerId){
         $args = [
@@ -327,8 +327,10 @@ class NmiClient
 
             // Voiding add_customer auth transaction
             if ($this->addCustomerMethod == 'auth') {
+                Log::channel('nmiPayments')->info(sprintf('Auth tranaction id: %s', $response->transactionid));
                 $args = array(
                     'amount' => 1.00,
+                    'security_key' => $this->securityKey,                    
                     'transactionid' => $response->transactionid,
                     'type' => 'cancel',
                 );
@@ -366,7 +368,7 @@ class NmiClient
 
     private function nmiRequest($args)
     {
-        $gatewayDebug = env('PAYMENT_TEST_MODE');
+        $gatewayDebug = config('app.payment_test_mode');
         $nmiRequest = new NmiRequest($this->username, $this->password, $gatewayDebug);
 
         if (isset($args['customer_vault'])) {

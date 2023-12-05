@@ -7,9 +7,22 @@ use App\Invoice;
 use App\PaymentSubscription;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\InvoicesExport;
+/**
+ * @group Invoice   
+ *
+ * APIs for managing  invoice
+ */
 
 class InvoiceController extends Controller
 {
+    /**
+     * show a invoice.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function show($id,Request $request){
         $user = $request->user('api');
         $invoice = Invoice::find($id);
@@ -35,6 +48,14 @@ class InvoiceController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * search invoices.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function index(Request $request){
         $user = $request->user('api');
         if($user->can('invoices') || $user->customer){
@@ -45,6 +66,14 @@ class InvoiceController extends Controller
             return response()->json(['status'=>'failed'],403);
         }
     }
+    /**
+     * export invoices.
+     * 
+     * This endpoint.
+     * @authenticated
+     * @response {
+     * }
+     */
     public function export(Request $request)
     {
         $user = $request->user('api');

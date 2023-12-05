@@ -15,11 +15,16 @@ class CreatePostsTable extends Migration
     {
         Schema::create('posts', function (Blueprint $table) {
             $table->bigIncrements('id');
-            $table->string('title');
-            $table->string('slug')->unique();
-            $table->text('content');
+            $table->text('content')->nullable();
+            $table->json('json_content')->nullable();
+            $table->text('searchable_content')->nullable();
             $table->unsignedBigInteger('activity_id');//social activity
-            $table->unsignedBigInteger('customer_id');
+            $table->unsignedBigInteger('customer_id');//if it is 0, it means fitemos.
+            $table->date('workout_date')->nullable();
+            $table->json('tag_followers')->nullable();
+            $table->string('location')->nullable();
+            $table->boolean('status')->default(0);
+            $table->enum('type',['general','workout','shop','blog','benchmark','evento','join'])->default("general");
             $table->timestamps();
         });
     }

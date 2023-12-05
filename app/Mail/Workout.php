@@ -24,7 +24,7 @@ class Workout extends Mailable
         $this->publishDate = $publishDate;
         $this->content = $content;
         $this->blog = $blog;
-        $this->homeUrl = env('APP_URL');
+        $this->homeUrl = config('app.url');
     }
 
     /**
